@@ -1,1 +1,1 @@
-Hello
+This is an AI agent designed to play the game Dots and Boxes. This project is for WPI's class CS4341 and was designed by Riley B. and Jade L. 
