@@ -9,11 +9,11 @@ class Edge {
 
     public:
         //constructor
-        Edge(int x1, int y1, int x2, int y2) {
-            coords[0] = x1;
-            coords[1] = y1;
-            coords[2] = x2;
-            coords[3] = y2;
+        Edge(int y1, int x1, int y2, int x2) {
+            coords[0] = y1;
+            coords[1] = x1;
+            coords[2] = y2;
+            coords[3] = x2;
         }
 
         void fill() {
@@ -31,7 +31,11 @@ class Edge {
 
 class Box {  
     int filled = 0;
+    int owned = 0;
+
+    //going clockwise from top
     Edge *edges[4];
+
     bool chainable[4] = {false, false, false, false};
 
     public:
@@ -50,6 +54,14 @@ class Box {
 
         void updateChainable() {
 
+        }
+
+        void setOwned(int o) {
+            owned = o;
+        }
+
+        int getOwned() {
+            int owned;
         }
 
 };
