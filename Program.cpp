@@ -1,17 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <windows.h> // FOR WINDOWS
 #include<unistd.h>  // FOR LINUX
 
 
 const int BOARD_WIDTH = 9;
 const int BOARD_Height = 9;
-const char* goFileName = "AgentName.go";
-const char* passFileName = "AgentName.go";
+const char* goFileName = "Clairvoyance.go";
+const char* passFileName = "Clairvoyance.go";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
-char fakeMove[20] = "AgentName 0,0 0,0";
+char fakeMove[21] = "Clairvoyance 0,0 0,0";
 FILE* endFP;
 FILE* moveFP;
 
@@ -51,7 +50,7 @@ void writeMove(FILE* move_file, char* move) { // CAN DO NOW
 
 
 int main(int argc, char** argv) {
-    printf("Program starting");
+    printf("Clairvoyance starting");
 
     //Board localBoard = new Board( /* parameters */ ); 
     //Edge* legalMoves = new Edge[BOARD_WIDTH*BOARD_Height]
