@@ -78,6 +78,9 @@ const char* passFileName = "Clairvoyance.go";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
 char fakeMove[21] = "Clairvoyance 0,0 0,0";
+FILE* endFP;
+FILE* moveFP;
+
 
 void handleEndGame(FILE* endFile) {
     char endTxt[200];
