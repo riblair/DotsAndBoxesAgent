@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include<unistd.h>  // FOR LINUX
+#include<unistd.h>
 
 
 const int BOARD_WIDTH = 9;
@@ -11,13 +11,12 @@ const char* passFileName = "Clairvoyance.go";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
 char fakeMove[21] = "Clairvoyance 0,0 0,0";
-FILE* endFP;
-FILE* moveFP;
 
-
-// TODO Write this function CAN DO NOW
 void handleEndGame(FILE* endFile) {
-
+    char endTxt[200];
+    fread(endTxt, 200, 1, endFile);
+    printf("%s", endTxt);
+    fclose(endFile);
 }
 
 // TODO Write this function
@@ -30,22 +29,23 @@ void /* Edge* */ stringToEdge(char* moveString) {
 
 }
 
-// TODO Write this function CAN DO NOW
 bool findFile(FILE* fp, const char* fileName) {
-    
-    return false;
+    fp = fopen(fileName, "r");
+    return fp == NULL; // uhh mybe?
 }
 
 void /* Edge* */ extractMove(FILE* moveFP) {
-
+    // CLOSE FILE AFTER THIS!
 }
 
 void updateLegalMoveList(/* Edge* moveList, Edge* move */) {
     
 }
 
-void writeMove(FILE* move_file, char* move) { // CAN DO NOW
-
+void writeMove(char* move) {
+    FILE* local_moveFP = fopen(moveFileName, "w"); 
+    fprintf(local_moveFP, "%s", move);
+    fclose(local_moveFP);
 }
 
 
@@ -58,6 +58,8 @@ int main(int argc, char** argv) {
     bool gameOver = false;
     /* Edge* bestMove; */
     /* Edge* oppMove */
+    FILE* endFP;
+    FILE* moveFP;
 
     /* We Loop until the game is over */
     while (!gameOver) {
@@ -72,14 +74,13 @@ int main(int argc, char** argv) {
             updateLegalMoveList(/* legalMoves, oppMove*/ );
 
             if(findFile(NULL,passFileName)) {
-                writeMove(moveFP, fakeMove);
-                 
+                writeMove(fakeMove);
             }
             else {
                 //this is where we take our turn
                 /* Edge* bestMove = myAgent.generateBestMove() */
                 updateLegalMoveList(/* legalMoves, bestMove*/);
-                writeMove(moveFP, fakeMove /* bestMove */); //replace with bestMove
+                writeMove(fakeMove /* bestMove */); //replace with bestMove
             }
             sleep(105); //wait for referee to update.
         }
