@@ -78,11 +78,12 @@ const char* passFileName = "Clairvoyance.go";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
 char fakeMove[21] = "Clairvoyance 0,0 0,0";
-FILE* endFP;
-FILE* moveFP;
-
 
 void handleEndGame(FILE* endFile) {
+    char endTxt[200];
+    fread(endTxt, 200, 1, endFile);
+    printf("%s", endTxt);
+    fclose(endFile);
     char endTxt[200];
     fread(endTxt, 200, 1, endFile);
     printf("%s", endTxt);
@@ -102,9 +103,12 @@ void /* Edge* */ stringToEdge(char* moveString) {
 bool findFile(FILE* fp, const char* fileName) {
     fp = fopen(fileName, "r");
     return fp == NULL; // uhh mybe?
+    fp = fopen(fileName, "r");
+    return fp == NULL; // uhh mybe?
 }
 
 void /* Edge* */ extractMove(FILE* moveFP) {
+    // CLOSE FILE AFTER THIS!
     // CLOSE FILE AFTER THIS!
 }
 
@@ -128,6 +132,8 @@ int main(int argc, char** argv) {
     bool gameOver = false;
     /* Edge* bestMove; */
     /* Edge* oppMove */
+    FILE* endFP;
+    FILE* moveFP;
     FILE* endFP;
     FILE* moveFP;
 
