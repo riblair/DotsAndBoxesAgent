@@ -5,7 +5,6 @@
 class Edge {
     int coords[4];
     bool filled = false;
-    int heuristic;
 
     public:
         //constructor
@@ -20,12 +19,8 @@ class Edge {
             filled = true;
         }
 
-        void setHeuristic(int h) {
-            heuristic = h;
-        }
-
-        void getHeuristic(int h) {
-            heuristic = h;
+        bool getFilled() {
+            return filled;
         }
 };
 
@@ -52,10 +47,6 @@ class Box {
             filled += 1;
         }
 
-        void updateChainable() {
-
-        }
-
         void setOwned(int o) {
             owned = o;
         }
@@ -64,7 +55,100 @@ class Box {
             int owned;
         }
 
+        int chainNeighbor(int possibleSide) {
+            bool newArr[4] = {edges[0]->getFilled(), edges[1]->getFilled(), edges[2]->getFilled(), edges[3]->getFilled()};
+            newArr[possibleSide] = true;
+
+            int emptySide = 0;
+            for (int i; i < 4; i++) {
+                if (newArr[i] == false) {
+                    emptySide = i;
+                }
+            }
+            if (neighbor[i].filled != 2) {
+                emptySide = 5;
+            }
+            return emptySide;
+
+        }
+
+
+        int chainNum(int max, int count, int n) {
+
+            //for testing
+            int chainable = chainneighbor;
+
+            if ((chainable < 4) && (count <= max)) {
+                return neighbor.chainNum(max, count + 1);
+            }
+            else {
+                return count;
+            }
+        }
+
 };
+
+//evaluation function
+int eval(){
+    return 0;
+}
+
+Edge bestMove;
+
+int max(int x, int y) {
+    int m = x;
+    if (y > x)  {
+        m = y;
+    }
+    return m;
+}
+
+int min(int x, int y) {
+    int m = x;
+    if (y < x)  {
+        m = y;
+    }
+    return m;
+}
+
+//actual minimax func
+int minimax(Board board, int depth, bool isMax, int alpha, int beta) {
+    if ((depth == 0) || (board.getMoves() == NULL)) {
+        return board.getEval();
+    }
+
+    if (isMax) {
+        int maxEval = -100000;
+        Edge moves[] = board.getMoves();
+        for (int i: moves) {
+            Board childBoard = board.move(moves[i], 1);
+            int eval = minimax(childBoard, depth-1, false, alpha, beta);
+            if (eval > maxEval) {
+                maxEval = eval;
+                alpha = max(maxEval, alpha);
+                bestMove = moves[i];
+            }
+            if (beta <= alpha) {
+                break;
+            }
+        }
+        return maxEval;
+    }
+    else {
+        int minEval = 100000;
+        Edge moves[] = board.getMoves();
+        for (int i: moves) {
+            Board childBoard = board.move(moves[i], 2);
+            int eval = minimax(childBoard, depth-1, true, alpha, beta);
+            minEval = min(minEval, eval);
+            beta = min(minEval, beta);
+            if (beta <= alpha) {
+                break;
+            }
+        }
+        return minEval;
+    }
+}
 
 
 int main(int argc, char** argv) {
