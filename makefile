@@ -1,2 +1,2 @@
 make: Program.cpp 
-	gcc -g ./Program.cpp -o program
+	gcc -g ./Program.cpp -o Clairvoyance
