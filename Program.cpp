@@ -329,9 +329,9 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
 
     if (isMax) {
         int maxEval = -100000;
-        Edge moves[] = board->getMoves();
-        for (int i: moves) {
-            Board childBoard = board.move(moves[i], 1);
+        Edge* moves = board.getMoves();
+        while(moves != NULL) {
+            Board childBoard = board.move(moves, 1);
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
             if (eval > maxEval) {
                 maxEval = eval;
@@ -341,20 +341,22 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
             if (beta <= alpha) {
                 break;
             }
+            moves = moves->nextEdge;
         }
         return maxEval;
     }
     else {
         int minEval = 100000;
-        Edge moves[] = board.getMoves();
-        for (int i: moves) {
-            Board childBoard = board.move(moves[i], 2);
+        Edge* moves = board.getMoves();
+        while(moves != NULL) {
+            Board childBoard = board.move(moves, 2);
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
             if (beta <= alpha) {
                 break;
             }
+            moves = moves->nextEdge;
         }
         return minEval;
     }
