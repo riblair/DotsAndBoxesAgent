@@ -76,7 +76,7 @@ class Box {
                     emptySide = i;
                 }
             }
-            if (neighbor[i].filled != 2) {
+            if (neighbor[emptySide].filled != 2) {
                 emptySide = 5;
             }
             return emptySide;
@@ -87,10 +87,18 @@ class Box {
         int chainNum(int max, int count, int n) {
 
             //for testing
-            int chainable = chainneighbor;
+            int chainable = chainNeighbor(n);
+
+            int empty = 0;
+            if (chainable >= 2) {
+                empty = chainable - 2;
+            }
+            else {
+                empty = chainable + 2;
+            }
 
             if ((chainable < 4) && (count <= max)) {
-                return neighbor.chainNum(max, count + 1);
+                return neighbor[chainable].chainNum(max, count + 1, empty);
             }
             else {
                 return count;
@@ -98,11 +106,6 @@ class Box {
         }
 
 };
-
-//evaluation function
-int eval(){
-    return 0;
-}
 
 Edge bestMove;
 
