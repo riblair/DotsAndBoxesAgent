@@ -3,6 +3,7 @@
 #include <string.h>
 //#include <windows.h>
 #include<unistd.h> 
+#include <time.h>
 
 const int BOARD_WIDTH = 9; // boxes
 const int BOARD_HEIGHT = 9; // boxes
@@ -453,15 +454,19 @@ Edge* generateRandomMove(Board* currBoard) {
 // current todo. TEST board, TEST legal move list, and random move maker.
 // Testable program now. Will make first legal move
 int main(int argc, char** argv) {
+    
     printf("Clairvoyance starting");
 
     Board* localBoard = new Board(); 
     Edge* bestMove; 
     bool pass;
+    clock_t t;
+    
     /* We Loop until the game is over */
     while (true) {
         if(findFile(NULL, goFileName)) {
-
+            // start timer
+            t = clock();
             if(handleEndGame()) break; //handles ending game if endgame file exists
 
             localBoard =  handleOppTurn(localBoard); // extracts opp move and updates current board
@@ -475,6 +480,8 @@ int main(int argc, char** argv) {
                 localBoard->setPass(false); //when player updates board, never handle passing
                 writeMove(bestMove); //replace with bestMove
             }
+            t = clock() - t;
+            printf ("I took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
             sleep(105); //wait for referee to update. 
         }
         else {
