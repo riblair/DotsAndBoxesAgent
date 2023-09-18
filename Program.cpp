@@ -19,6 +19,8 @@ class Edge {
             coords[1] = x1;
             coords[2] = y2;
             coords[3] = x2;
+
+            nextEdge = NULL;
         }
 
         void fill() {
@@ -35,7 +37,7 @@ class Edge {
 
         bool equals(Edge* otherEdge) {
             int* otherCoords = otherEdge->coords;
-            return  coords[0]==otherCoords[0] && 
+            return  coords[0 ]==otherCoords[0] && 
                     coords[1] == otherCoords[1] && 
                     coords[2] == otherCoords[2] && 
                     coords[3] == otherCoords[3];
@@ -66,11 +68,11 @@ class Box {
         // This function updates filled, owned, and edges. Returns true if filled 
         bool updateBox(int edgeNum, Edge* newEdge, int player) {
             edges[edgeNum] =  newEdge;
-            if(edges[0] && edges[1] && edges[2] && edges[3]) { //box is captured
+            if(edges[0]->getFilled() && edges[1]->getFilled() && edges[2]->getFilled() && edges[3]->getFilled()) { //box is captured
                 this->setOwned(player);
                 this->filled = true;
             }
-            // UPDATE CHAINABLE HERE!!!!!
+            
             return this->filled;
         }
 
@@ -204,10 +206,26 @@ class Board {
                 somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(1, currMove, player);
             }
 
-            
+            if(somethingFilled) {
+                this->updateScore();
+            }
             this->nextPass = somethingFilled;
-            // CALCULATE MYSCORE HERE?
-            // CALCULATE ENENMY SCORE HERE?
+        }
+
+        void updateScore() {
+            //for all boxes check who owns it and add that to score
+            int myCurScore = 0;
+            int enemyCurScore = 0;
+            int ownedVal;
+            for(int i = 0; i < BOARD_HEIGHT; i++) {
+                for(int j = 0; j < BOARD_WIDTH; j++) {
+                    ownedVal = allBoxes[i][j]->getOwned();
+                    if(ownedVal == 1)  myCurScore++;
+                    else if(ownedVal == 2) enemyCurScore++;
+                }
+            }
+            this->myScore = myCurScore;
+            this->enemyScore = enemyScore;
         }
 
         //Test this function
@@ -222,9 +240,10 @@ class Board {
                 add top if top row and not filled,
                 add left if first column */
             // ive decided to implement the movelist as a singled linkedlist where the first node is always the fake move
+            Edge** boxEdges;
             for(int i = 0; i < BOARD_HEIGHT; i++) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
-                    Edge** boxEdges = allBoxes[i][j]->edges;
+                    boxEdges = allBoxes[i][j]->edges;
                     if(i == 0 && !boxEdges[0]->getFilled()) { //only add top edge if top and not filled
                         headNode->nextEdge = boxEdges[0];
                         headNode = headNode->nextEdge;
@@ -243,12 +262,18 @@ class Board {
                     }
                 }
             }
-            return moveList;
+            return moveList->nextEdge;
         }
         // DONE?
         Board* move(Board* curBoard, Edge* theMove, int player) { 
-            Board* nextBoard = new Board(curBoard, theMove, player);
-            return nextBoard;
+            if(theMove->equals(fakeMove)) {
+                this->nextPass = false;
+                return this;
+            }
+            else {
+                Board* nextBoard = new Board(curBoard, theMove, player);
+                return nextBoard;
+            }
         }
 
         void setHeuristic(int h) {
@@ -418,6 +443,7 @@ Edge* generateRandomMove(Board* currBoard) {
 }
 
 // current todo. TEST board, TEST legal move list, and random move maker.
+// Testable program now. Will make first legal move
 int main(int argc, char** argv) {
     printf("Clairvoyance starting");
 
