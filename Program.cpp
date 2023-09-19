@@ -362,19 +362,26 @@ class Board {
                 isHorizontal = false;
             }
             if (isHorizontal) {
-                //if top box exists
-                
+                //if upper box exists
+                if (allBoxes[bx][by-1] != NULL){
                     chain += chainNum(0, bx, by - 1, 2);
+                }
 
-                //if bottom box exists
+                //if lower box exists
+                if (allBoxes[bx][by] != NULL){
                     chain += chainNum(0, bx, by, 0);
+                }
             }
             else {
                 //if left box exists
-                    chain += chainNum(0, bx, by, 1);
+                if (allBoxes[bx-1][by] != NULL){
+                    chain += chainNum(0, bx - 1, by, 1);
+                }
 
                 //if right box exists
+                if (allBoxes[bx][by] != NULL){
                     chain += chainNum(0, bx, by, 3);
+                }
                 
             }
 
