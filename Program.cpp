@@ -357,32 +357,34 @@ class Board {
             int bx = mostRecentMove->getCoords()[1];
             int by = mostRecentMove->getCoords()[0];
 
-            bool isHorizontal = true;
-            if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
-                isHorizontal = false;
-            }
-            if (isHorizontal) {
-                //if upper box exists
-                if (allBoxes[bx][by-1] != NULL){
-                    chain += chainNum(0, bx, by - 1, 2);
+            //if opponents turn to move (not pass), count possible chain
+            if (nextPass == false) {
+                bool isHorizontal = true;
+                if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
+                    isHorizontal = false;
                 }
+                if (isHorizontal) {
+                    //if upper box exists
+                    if (allBoxes[bx][by-1] != NULL){
+                        chain += chainNum(0, bx, by - 1, 2);
+                    }
 
-                //if lower box exists
-                if (allBoxes[bx][by] != NULL){
-                    chain += chainNum(0, bx, by, 0);
+                    //if lower box exists
+                    if (allBoxes[bx][by] != NULL){
+                        chain += chainNum(0, bx, by, 0);
+                    }
                 }
-            }
-            else {
-                //if left box exists
-                if (allBoxes[bx-1][by] != NULL){
-                    chain += chainNum(0, bx - 1, by, 1);
-                }
+                else {
+                    //if left box exists
+                    if (allBoxes[bx-1][by] != NULL){
+                        chain += chainNum(0, bx - 1, by, 1);
+                    }
 
-                //if right box exists
-                if (allBoxes[bx][by] != NULL){
-                    chain += chainNum(0, bx, by, 3);
+                    //if right box exists
+                    if (allBoxes[bx][by] != NULL){
+                        chain += chainNum(0, bx, by, 3);
+                    }
                 }
-                
             }
 
             eval -= chain;
@@ -577,7 +579,7 @@ int main(int argc, char** argv) {
 
                 maxChain = 10000;
                 //use when done testing with generateRandomMove:
-                //
+                //int minimaxNum = minimax(localBoard, 5, true, -100000, 100000);
 
                 localBoard = localBoard->move(localBoard, bestMove, 1);
                 localBoard->setPass(false); //when player updates board, never handle passing
