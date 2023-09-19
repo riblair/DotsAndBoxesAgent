@@ -2,7 +2,7 @@ import pygame
 import sys
 
 # Define constants
-ROWS, COLS = 8, 8
+ROWS, COLS = 9, 9
 GRID_SIZE = 100
 DOT_RADIUS = 10
 LINE_WIDTH = 3

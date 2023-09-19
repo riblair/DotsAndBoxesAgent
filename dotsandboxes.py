@@ -39,8 +39,8 @@ class Edge:
 
 def generateEdges(r, c):  # how many rows, how many columns
     edges = {}
-    for i in range(r):
-        for j in range(c):
+    for i in range(r+1):
+        for j in range(c+1):
             coord1 = (i, j)
             if i != r:
                 # newEdge = Edge(coord1, (i + 1, j))

@@ -36,7 +36,7 @@ This argument option is provide to allow easier debugging.
 
 The referee will create the files that it maintains in the same directory that the referee.py file is in.
 
-If you would like to just play the game, run DOES NOT WORK!!
+If you would like to just play the game, run
 
 `python game.py <Player 1 name> <Player 2 name>`
 

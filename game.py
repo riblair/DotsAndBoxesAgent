@@ -35,7 +35,7 @@ class Game:
         self.f_p2 = f_p2
         self.p1_points = 0
         self.p2_points = 0
-        self.board = generateEdges(10, 10) # editted from original. 
+        self.board = generateEdges(9, 9)
         self.completed_squares = []
         self.moves = 0
         self.pass_or_go = False

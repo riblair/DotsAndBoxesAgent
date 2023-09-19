@@ -4,15 +4,23 @@
 //#include <windows.h>
 #include<unistd.h> 
 #include <time.h>
+#include <math.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 const int BOARD_WIDTH = 9; // boxes
 const int BOARD_HEIGHT = 9; // boxes
+const char* goFileName = "Clairvoyance.go";
+const char* passFileName = "Clairvoyance.pass";
+const char* endFileName = "end_file";
+const char* moveFileName = "move_file";
 
 class Edge {
-    int coords[4];
+    
     bool filled = false;
     
     public:
+        int coords[4];
         Edge* nextEdge; // this is for linkedList purposes.
         /*Constructor for Edge */
         Edge(int y1, int x1, int y2, int x2) {
@@ -21,19 +29,19 @@ class Edge {
             coords[2] = y2;
             coords[3] = x2;
 
-            nextEdge = NULL;
+            this->nextEdge = NULL;
         }
 
         void fill() {
-            filled = true;
+            this->filled = true;
         }
 
         bool getFilled() {
-            return filled;
+            return this->filled;
         }
 
         int* getCoords() {
-            return coords;
+            return this->coords;
         }
 
         bool equals(Edge* otherEdge) {
@@ -44,6 +52,8 @@ class Edge {
                     coords[3] == otherCoords[3];
         }
 };
+
+Edge* fakeMove = new Edge(0, 0, 0, 0);
 
 class Box {  
     int filled = 0;
@@ -275,7 +285,7 @@ class Board {
         }
         // DONE?
         Board* move(Board* curBoard, Edge* theMove, int player) { 
-            if(theMove->equals(fakeMove)) {
+            if(theMove->equals(new Edge(0,0,0,0))) {
                 this->nextPass = false;
                 return this;
             }
@@ -361,17 +371,12 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     }
 };
 */
-const char* goFileName = "Clairvoyance.go";
-const char* passFileName = "Clairvoyance.go";
-const char* endFileName = "end_file";
-const char* moveFileName = "move_file";
-Edge* fakeMove = new Edge(0, 0, 0, 0);
 
-bool findFile(FILE* fp, const char* fileName) {
-    fp = fopen(fileName, "r");
-    return fp != NULL; // uhh mybe?
+bool findFile(FILE** fp, const char* fileName) {
+    *fp = fopen(fileName, "r");
+    return *fp != NULL;
 }
-
+/* It occurs to me that I do not know how to get the move properly. This is currently wrong. DEBUG THIS*/
 Edge* stringToEdge(char* moveString) { 
     char* moveCopy = (char*)malloc(200*sizeof(char));
     strncpy(moveCopy, moveString, 200);
@@ -387,13 +392,17 @@ Edge* stringToEdge(char* moveString) {
     int highestX = max(x1,x2);
 
     Edge* newEdge = new Edge(lowestY, lowestX, highestY, highestX); 
+
+    //free(moveString); // prob not neccesary
     newEdge->fill();
     return newEdge;
 }
 
-Edge* extractMove(FILE* moveFP) {
+Edge* extractMove(FILE* moveFP, int size) {
     char moveString[200];
+    printf("b4 fread %d \n", moveFP);
     fread(moveString, sizeof(moveString), 1, moveFP);
+    printf("after fread \n");
     fclose(moveFP);
     return stringToEdge(moveString);
 }
@@ -401,9 +410,9 @@ Edge* extractMove(FILE* moveFP) {
 
 // returns move with name
 char* edgeToString(Edge* edge) { 
-    char* edgeString;
-    int* coords = edge->getCoords();
-    int outputNum = sprintf(edgeString, "Clairvoyance %d,%d, %d,%d", coords[0], coords[1], coords[2], coords[3]); //MYBE
+    char* edgeString = (char*)malloc(20*sizeof(char)); // we have no way to close this, may cause memory leak :)
+    int* coords = edge->coords;
+    int outputNum = sprintf(edgeString, "Clairvoyance %d,%d, %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
     printf("Sprintf output %d, %s\n", outputNum,edgeString);
     return edgeString;
 }
@@ -416,7 +425,7 @@ void writeMove(Edge* moveEdge) {
 
 bool handleEndGame() {
     FILE* endFP;
-    if(findFile(endFP, endFileName)) {
+    if(findFile(&endFP, endFileName)) {
         char endTxt[200];
         fread(endTxt, 200, 1, endFP);
         printf("%s", endTxt);
@@ -429,9 +438,15 @@ bool handleEndGame() {
 Board* handleOppTurn(Board* currentBoard) {
     Edge* oppMove;
     Board* nextBoard = currentBoard;
-    FILE* moveFP;
-    findFile(moveFP, moveFileName); // should always find file
-    oppMove = extractMove(moveFP); // this fcn also closes moveFP
+    FILE* moveFP = (FILE*)malloc(sizeof(FILE*));
+    findFile(&moveFP, moveFileName); // should always find file
+    struct stat* fileStat = (struct stat*)malloc(sizeof(struct stat));
+    stat(moveFileName,fileStat);
+    if(!fileStat->st_size > 0) { //first move with an empty move file
+        return currentBoard; 
+    }
+    oppMove = extractMove(moveFP, fileStat->st_size); // this fcn also closes moveFP
+    printf("extracted move\n");
     if(!oppMove->equals(fakeMove)) { // dont update board if opp passes 
         nextBoard = currentBoard->move(currentBoard, oppMove, 2);
     }
@@ -440,8 +455,8 @@ Board* handleOppTurn(Board* currentBoard) {
 }
 
 bool handlePass() {
-    FILE* passFP;
-    bool needtoPass = findFile(passFP,passFileName);
+    FILE* passFP = NULL;
+    bool needtoPass = findFile(&passFP,passFileName);
     if(needtoPass) writeMove(fakeMove);
     fclose(passFP);
     return needtoPass;
@@ -455,22 +470,25 @@ Edge* generateRandomMove(Board* currBoard) {
 // Testable program now. Will make first legal move
 int main(int argc, char** argv) {
     
-    printf("Clairvoyance starting");
+    printf("Clairvoyance starting\n");
 
     Board* localBoard = new Board(); 
-    Edge* bestMove; 
+    printf("no crash\n");
     bool pass;
     clock_t t;
+    FILE* goFile = (FILE*)malloc(sizeof(FILE*));
     
     /* We Loop until the game is over */
     while (true) {
-        if(findFile(NULL, goFileName)) {
+         if(findFile(&goFile, goFileName)) {
+            printf("found go file!\n");
+            fclose(goFile);
             // start timer
             t = clock();
             if(handleEndGame()) break; //handles ending game if endgame file exists
-
+            printf("done endgame!\n");
             localBoard =  handleOppTurn(localBoard); // extracts opp move and updates current board
-            
+            printf("done opp turn!\n");
             pass = handlePass(); // handles passing if pass file exists
 
             if(!pass) { //take our turn if not passed
