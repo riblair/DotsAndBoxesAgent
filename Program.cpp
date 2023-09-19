@@ -58,6 +58,9 @@ Edge* fakeMove = new Edge(0, 0, 0, 0);
 class Box {  
     int filled = 0;
     int owned = 0;
+    int boxX = 0;
+    int boxY = 0;
+
 
     //going clockwise from top
     
@@ -67,11 +70,13 @@ class Box {
         /*Constructor for Box */
         Edge *edges[4];
 
-        Box(Edge *e0, Edge *e1, Edge *e2, Edge *e3) {
+        Box(Edge *e0, Edge *e1, Edge *e2, Edge *e3, int bX, int bY) {
             edges[0] = e0;
             edges[1] = e1;
             edges[2] = e2;
             edges[3] = e3;
+            boxX = bX;
+            boxY = bY;
         }
 
         //helper functions
@@ -94,47 +99,7 @@ class Box {
         int getOwned() {
             return owned;
         }
-        /* only doing this because errors are occuring
-        int chainNeighbor(int possibleSide) {
-            bool newArr[4] = {edges[0]->getFilled(), edges[1]->getFilled(), edges[2]->getFilled(), edges[3]->getFilled()};
-            newArr[possibleSide] = true;
 
-            int emptySide = 0;
-            for (int i; i < 4; i++) {
-                if (newArr[i] == false) {
-                    emptySide = i;
-                }
-            }
-            if (neighbor[emptySide].filled != 2) {
-                emptySide = 5;
-            }
-            return emptySide;
-
-        }
-        */
-
-       /* only doing this because errors are occuring
-        int chainNum(int max, int count, int n) {
-
-            //for testing
-            int chainable = chainNeighbor(n);
-
-            int empty = 0;
-            if (chainable >= 2) {
-                empty = chainable - 2;
-            }
-            else {
-                empty = chainable + 2;
-            }
-
-            if ((chainable < 4) && (count <= max)) {
-                return neighbor[chainable].chainNum(max, count + 1, empty);
-            }
-            else {
-                return count;
-            }
-        }
-        */
 };
 
 class Board {
@@ -168,7 +133,7 @@ class Board {
                     rightEdge = new Edge(i, j+1, i+1, j+1); // TR to BR
                     bottomEdge = new Edge(i+1, j, i+1, j+1); // BL to BR
 
-                    allBoxes[i][j] = new Box(topEdge, rightEdge, bottomEdge, leftEdge);
+                    allBoxes[i][j] = new Box(topEdge, rightEdge, bottomEdge, leftEdge, i, j);
                 }
             }
         }
@@ -306,13 +271,89 @@ class Board {
         void setPass(bool pass) {
             this->nextPass = pass;
         }
+
+        Box* getNeighbor(int bx, int by, int side) {
+            int neighborX = bx;
+            int neighborY = by;
+
+            if (side == 0) {
+                neighborY -= 1;
+            }
+            else if (side == 1) {
+                neighborX += 1;
+            }
+            else if (side == 2) {
+                neighborY += 1;
+            }
+            else if (side == 3) {
+                neighborX -= 1;
+            }
+            return allBoxes[neighborX][neighborY];
+        }
+
+        /* only doing this because errors are occuring
+        int chainNeighbor(int possibleSide) {
+            bool newArr[4] = {edges[0]->getFilled(), edges[1]->getFilled(), edges[2]->getFilled(), edges[3]->getFilled()};
+            newArr[possibleSide] = true;
+
+            int emptySide = 0;
+            for (int i; i < 4; i++) {
+                if (newArr[i] == false) {
+                    emptySide = i;
+                }
+            }
+            if (neighbor[emptySide].filled != 2) {
+                emptySide = 5;
+            }
+            return emptySide;
+
+        }
+        */
+
+       /* only doing this because errors are occuring
+        int chainNum(int max, int count, int n) {
+
+            //for testing
+            int chainable = chainNeighbor(n);
+
+            int empty = 0;
+            if (chainable >= 2) {
+                empty = chainable - 2;
+            }
+            else {
+                empty = chainable + 2;
+            }
+
+            if ((chainable < 4) && (count <= max)) {
+                return neighbor[chainable].chainNum(max, count + 1, empty);
+            }
+            else {
+                return count;
+            }
+        }
+        */
+
+        int getEval() {
+            int chain = 0;
+            int eval = myScore - enemyScore;
+
+            bool isHorizontal = true;
+            if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
+                isHorizontal = false;
+            }
+            if (isHorizontal) {
+                //if first box exists
+
+                //if second box exists
+            }
+            else {
+                
+            }
+
+            return eval;
+        }
     
 };
-
-//evaluation function
-int eval(){
-    return 0;
-}
 
 Edge* bestMove;
 
@@ -340,9 +381,9 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
 
     if (isMax) {
         int maxEval = -100000;
-        Edge moves[] = board->getMoves();
-        for (int i: moves) {
-            Board childBoard = board.move(moves[i], 1);
+        Edge* moves = board.getMoves();
+        while(moves != NULL) {
+            Board childBoard = board.move(moves, 1);
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
             if (eval > maxEval) {
                 maxEval = eval;
@@ -352,20 +393,22 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
             if (beta <= alpha) {
                 break;
             }
+            moves = moves->nextEdge;
         }
         return maxEval;
     }
     else {
         int minEval = 100000;
-        Edge moves[] = board.getMoves();
-        for (int i: moves) {
-            Board childBoard = board.move(moves[i], 2);
+        Edge* moves = board.getMoves();
+        while(moves != NULL) {
+            Board childBoard = board.move(moves, 2);
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
             if (beta <= alpha) {
                 break;
             }
+            moves = moves->nextEdge;
         }
         return minEval;
     }
