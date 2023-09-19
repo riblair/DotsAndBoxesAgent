@@ -84,12 +84,22 @@ class Box {
         // This function updates filled, owned, and edges. Returns true if filled 
         bool updateBox(int edgeNum, Edge* newEdge, int player) {
             edges[edgeNum] =  newEdge;
-            if(edges[0]->getFilled() && edges[1]->getFilled() && edges[2]->getFilled() && edges[3]->getFilled()) { //box is captured
-                this->setOwned(player);
-                this->filled = true;
+            int filledNum = 0;
+            bool isFilled;
+
+            for (int i; i < 4; i++) {
+                if (edges[i]->getFilled()) {
+                    filledNum += 1;
+                }
             }
+
+            if(filledNum == 4) { //box is captured
+                this->setOwned(player);
+            }
+
+            filled = filledNum;
             
-            return this->filled;
+            return isFilled;
         }
 
         void setOwned(int o) {
@@ -100,12 +110,23 @@ class Box {
             return owned;
         }
 
+        int getFilled() {
+            return filled;
+        }
+
+        int getBoxX() {
+            return boxX;
+        }
+
+        int getBoxY() {
+            return boxY;
+        }
+
 };
 
 class Board {
     int myScore; // my boxes
     int enemyScore; //enemy boxes 
-    int heuristic;
     bool nextPass; 
     Edge* mostRecentMove;
     
@@ -260,14 +281,6 @@ class Board {
             }
         }
 
-        void setHeuristic(int h) {
-            heuristic = h;
-        }
-
-        void getHeuristic(int h) {
-            heuristic = h;
-        }
-
         void setPass(bool pass) {
             this->nextPass = pass;
         }
@@ -291,9 +304,10 @@ class Board {
             return allBoxes[neighborX][neighborY];
         }
 
-        /* only doing this because errors are occuring
-        int chainNeighbor(int possibleSide) {
-            bool newArr[4] = {edges[0]->getFilled(), edges[1]->getFilled(), edges[2]->getFilled(), edges[3]->getFilled()};
+        //return side with chainable neighbor (or 5 if no sides are chainable)
+        int chainNeighbor(int bx, int by, int possibleSide) {
+            Box* curBox = allBoxes[bx][by];
+            bool newArr[4] = {(curBox->edges[0])->getFilled(), (curBox->edges[1])->getFilled(), (curBox->edges[2])->getFilled(), (curBox->edges[3])->getFilled()};
             newArr[possibleSide] = true;
 
             int emptySide = 0;
@@ -302,19 +316,18 @@ class Board {
                     emptySide = i;
                 }
             }
-            if (neighbor[emptySide].filled != 2) {
+            Box* neighbor = getNeighbor(bx,by,emptySide);
+            if (neighbor->getFilled() != 2) {
                 emptySide = 5;
             }
             return emptySide;
 
         }
-        */
+        
+        //return number of boxes in chain (stop counting if chain is longer than another already found)
+        int chainNum(int count, int bx, int by, int n) {
 
-       /* only doing this because errors are occuring
-        int chainNum(int max, int count, int n) {
-
-            //for testing
-            int chainable = chainNeighbor(n);
+            int chainable = chainNeighbor(bx, by, n);
 
             int empty = 0;
             if (chainable >= 2) {
@@ -324,31 +337,48 @@ class Board {
                 empty = chainable + 2;
             }
 
-            if ((chainable < 4) && (count <= max)) {
-                return neighbor[chainable].chainNum(max, count + 1, empty);
+            if ((chainable < 4) && (count <= maxChain)) {
+                Box* neighbor = getNeighbor(bx,by,chainable);
+                return chainNum(count + 1, neighbor->getBoxX(), neighbor->getBoxY(), empty);
             }
             else {
+                if (count < maxChain) {
+                    maxChain = count;
+                }
                 return count;
             }
         }
-        */
+        
 
         int getEval() {
             int chain = 0;
             int eval = myScore - enemyScore;
+
+            int bx = mostRecentMove->getCoords()[1];
+            int by = mostRecentMove->getCoords()[0];
 
             bool isHorizontal = true;
             if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
                 isHorizontal = false;
             }
             if (isHorizontal) {
-                //if first box exists
+                //if top box exists
+                
+                    chain += chainNum(0, bx, by - 1, 2);
 
-                //if second box exists
+                //if bottom box exists
+                    chain += chainNum(0, bx, by, 0);
             }
             else {
+                //if left box exists
+                    chain += chainNum(0, bx, by, 1);
+
+                //if right box exists
+                    chain += chainNum(0, bx, by, 3);
                 
             }
+
+            eval -= chain;
 
             return eval;
         }
@@ -356,6 +386,7 @@ class Board {
 };
 
 Edge* bestMove;
+int maxChain;
 
 int max(int x, int y) {
     int m = x;
@@ -372,23 +403,22 @@ int min(int x, int y) {
     }
     return m;
 }
-/*
-//actual minimax func
+
 int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
-    if ((depth == 0) || (board.getMoves() == NULL)) {
-        return board.getEval();
+    if ((depth == 0) || (board->getMoves() == NULL)) {
+        return board->getEval();
     }
 
     if (isMax) {
         int maxEval = -100000;
-        Edge* moves = board.getMoves();
+        Edge* moves = board->getMoves();
         while(moves != NULL) {
-            Board childBoard = board.move(moves, 1);
+            Board* childBoard = board->move(childBoard, moves, 1);
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
             if (eval > maxEval) {
                 maxEval = eval;
                 alpha = max(maxEval, alpha);
-                bestMove = moves[i];
+                bestMove = moves;
             }
             if (beta <= alpha) {
                 break;
@@ -399,9 +429,9 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     }
     else {
         int minEval = 100000;
-        Edge* moves = board.getMoves();
+        Edge* moves = board->getMoves();
         while(moves != NULL) {
-            Board childBoard = board.move(moves, 2);
+            Board* childBoard = board->move(childBoard, moves, 2);
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
@@ -413,7 +443,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         return minEval;
     }
 };
-*/
+
 
 bool findFile(FILE** fp, const char* fileName) {
     *fp = fopen(fileName, "r");
@@ -537,6 +567,11 @@ int main(int argc, char** argv) {
             if(!pass) { //take our turn if not passed
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
+
+                maxChain = 10000;
+                //use when done testing with generateRandomMove:
+                //
+
                 localBoard = localBoard->move(localBoard, bestMove, 1);
                 localBoard->setPass(false); //when player updates board, never handle passing
                 writeMove(bestMove); //replace with bestMove
