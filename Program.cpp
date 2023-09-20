@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
+//#include <windows.h>
 #include<unistd.h> 
 #include <time.h>
 #include <math.h>
@@ -236,7 +236,7 @@ class Board {
                 }
             }
             this->myScore = myCurScore;
-            this->enemyScore = enemyScore;
+            this->enemyScore = enemyCurScore;
         }
 
         //Test this function
@@ -537,7 +537,6 @@ Edge* stringToEdge(char* moveString) {
 
 Edge* extractMove(FILE** moveFP) {
     char moveString[200];
-    printf("b4 fread %d \n", moveFP);
     fread(moveString, sizeof(moveString), 1, *moveFP);
     printf("after fread \n");
     fclose(*moveFP);
@@ -549,7 +548,7 @@ Edge* extractMove(FILE** moveFP) {
 char* edgeToString(Edge* edge) { 
     char* edgeString = (char*)malloc(20*sizeof(char)); // we have no way to close this, may cause memory leak :)
     int* coords = edge->coords;
-    int outputNum = sprintf(edgeString, "Clairvoyance %d,%d, %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
+    int outputNum = snprintf(edgeString, 24, "Clairvoyance %d,%d, %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
     printf("Sprintf output %d, %s\n", outputNum,edgeString);
     return edgeString;
 }
@@ -610,7 +609,7 @@ Board* handleOppTurn(Board* currentBoard) {
     findFile(&moveFP, moveFileName); // should always find file
     struct stat* fileStat = (struct stat*)malloc(sizeof(struct stat));
     stat(moveFileName,fileStat);
-    if(!fileStat->st_size > 0) { //first move with an empty move file
+    if(!(fileStat->st_size > 0)) { //first move with an empty move file
         return currentBoard; 
     }
     oppMove = extractMove(&moveFP); // this fcn also closes moveFP
@@ -673,11 +672,11 @@ int main(int argc, char** argv) {
                 writeMove(bestMove); //replace with bestMove
             }
             t = clock() - t;
-            printf ("I took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
-            Sleep(105);
+            //printf ("I took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
+            sleep(1);
         }
         else {
-            Sleep(10);
+            sleep(1);
         }
     }
     return 0;
