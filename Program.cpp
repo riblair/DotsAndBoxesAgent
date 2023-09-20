@@ -82,12 +82,12 @@ class Box {
         //helper functions
 
         // This function updates filled, owned, and edges. Returns true if filled 
-        bool updateBox(int edgeNum, Edge* newEdge, int player) {
-            edges[edgeNum] =  newEdge;
+        bool updateBox(int edgeNum, Edge** newEdge, int player) {
+            edges[edgeNum] =  *newEdge;
             int filledNum = 0;
-            bool isFilled;
+            bool isFilled = false;
 
-            for (int i; i < 4; i++) {
+            for (int i = 0; i < 4; i++) {
                 if (edges[i]->getFilled()) {
                     filledNum += 1;
                 }
@@ -95,9 +95,10 @@ class Box {
 
             if(filledNum == 4) { //box is captured
                 this->setOwned(player);
+                isFilled = true;
             }
 
-            filled = filledNum;
+            this->filled = filledNum;
             
             return isFilled;
         }
@@ -160,12 +161,12 @@ class Board {
             }
         }
         // this should be used to make a board from a previous board state
-        Board(Board* prevBoard, Edge* currMove, int player) { 
-            this->mostRecentMove = currMove;
+        Board(Board** prevBoard, Edge** currMove, int player) { 
+            this->mostRecentMove = *currMove;
             //copy all boxes, update only relevant boxes
             for(int i = 0; i < BOARD_HEIGHT; i++) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
-                    allBoxes[i][j] = prevBoard->allBoxes[i][j];
+                    allBoxes[i][j] = (*prevBoard)->allBoxes[i][j];
                 }
             }
             /* relevant boxes are defined as boxes whose Edge needs to be updated
@@ -174,10 +175,14 @@ class Board {
                         horizontal edge -> update boxes above and below
             */
            // all coords are in order of lowest Y, lowest X, highest Y, highest X
-            int* moveCoords = currMove->getCoords();
+            int moveCoords[4]; 
+            moveCoords[0] = (*currMove)->getCoords()[0];
+            moveCoords[1] = (*currMove)->getCoords()[1];
+            moveCoords[2] = (*currMove)->getCoords()[2];
+            moveCoords[3] = (*currMove)->getCoords()[3];
 
-            bool verticalMove = moveCoords[0] == moveCoords[2]; 
-            bool horizontalMove = moveCoords[1] == moveCoords[3]; 
+            bool verticalMove = moveCoords[1] == moveCoords[3]; 
+            bool horizontalMove = moveCoords[0] == moveCoords[2]; 
 
             if(!verticalMove && !horizontalMove || verticalMove && horizontalMove) { //hopefully this never happens :)
                 printf("Something went wrong with move coordinates\n");
@@ -272,8 +277,8 @@ class Board {
             return moveList->nextEdge;
         }
         // DONE?
-        Board* move(Board* curBoard, Edge* theMove, int player) { 
-            if(theMove->equals(new Edge(0,0,0,0))) {
+        Board* move(Board** curBoard, Edge** theMove, int player) { 
+            if((*theMove)->equals(new Edge(0,0,0,0))) {
                 this->nextPass = false;
                 return this;
             }
@@ -426,7 +431,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         int maxEval = -100000;
         Edge* moves = board->getMoves();
         while(moves != NULL) {
-            Board* childBoard = board->move(childBoard, moves, 1);
+            Board* childBoard = board->move(&childBoard, &moves, 1);
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
             if (eval > maxEval) {
                 maxEval = eval;
@@ -444,7 +449,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         int minEval = 100000;
         Edge* moves = board->getMoves();
         while(moves != NULL) {
-            Board* childBoard = board->move(childBoard, moves, 2);
+            Board* childBoard = board->move(&childBoard, &moves, 2);
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
@@ -602,7 +607,7 @@ Board* handleOppTurn(Board* currentBoard) {
 
     printf("extracted move\n");
     if(!oppMove->equals(fakeMove)) { // dont update board if opp passes 
-        nextBoard = currentBoard->move(currentBoard, oppMove, 2);
+        nextBoard = currentBoard->move(&currentBoard, &oppMove, 2);
     }
     nextBoard->setPass(false); //when player updates board, never handle passing
     return nextBoard; 
@@ -653,7 +658,7 @@ int main(int argc, char** argv) {
                 //use when done testing with generateRandomMove:
                 //int minimaxNum = minimax(localBoard, 5, true, -100000, 100000);
 
-                localBoard = localBoard->move(localBoard, bestMove, 1);
+                localBoard = localBoard->move(&localBoard, &bestMove, 1);
                 localBoard->setPass(false); //when player updates board, never handle passing
                 writeMove(bestMove); //replace with bestMove
             }
