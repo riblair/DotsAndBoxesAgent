@@ -352,11 +352,15 @@ class Board {
             */
            return 0;
         }
+
+        int getScore() {
+            return myScore - enemyScore;
+        }
         
 
         int getEval() {
             int chain = 0;
-            int eval = myScore - enemyScore;
+            int eval = getScore();
 
             int bx = mostRecentMove->getCoords()[1];
             int by = mostRecentMove->getCoords()[0];
@@ -418,9 +422,15 @@ int min(int x, int y) {
 }
 
 int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
-    if ((depth == 0) || (board->getMoves() == NULL)) {
+
+    if (board->getMoves() == NULL) {
+        return board->getScore();
+    }
+    if (depth == 0) {
         return board->getEval();
     }
+
+
 
     if (isMax) {
         int maxEval = -100000;
@@ -547,8 +557,8 @@ void writeMove(Edge* moveEdge) {
 
 void findError(Edge* move) {
     int* moveCoords = move->getCoords();
-    bool verticalMove = moveCoords[0] == moveCoords[2]; 
-    bool horizontalMove = moveCoords[1] == moveCoords[3]; 
+    bool verticalMove = moveCoords[1] == moveCoords[3]; 
+    bool horizontalMove = moveCoords[0] == moveCoords[2]; 
 
     bool check1 = !verticalMove && !horizontalMove;
     bool check2 = verticalMove && horizontalMove;
