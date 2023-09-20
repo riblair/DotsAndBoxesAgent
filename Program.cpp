@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <windows.h>
+#include <windows.h>
 #include<unistd.h> 
 #include <time.h>
 #include <math.h>
@@ -136,6 +136,7 @@ class Board {
 
         Board() { // for beginning  
             this->mostRecentMove = NULL;
+            this->nextPass = false;
             Edge *topEdge, *rightEdge, *bottomEdge, *leftEdge;
             for(int i = 0; i < BOARD_HEIGHT; i++) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
@@ -235,7 +236,8 @@ class Board {
 
         //Test this function
         Edge* getMoves() { 
-            Edge* moveList = new Edge(0, 0, 0, 0); // a fake move pointer (not THE fake move pointer)
+            Edge* moveList;
+            moveList = new Edge(0, 0, 0, 0); // a fake move pointer (not THE fake move pointer)
             Edge* headNode = moveList;
             if(this->nextPass) {
                 return moveList;
@@ -326,7 +328,7 @@ class Board {
         
         //return number of boxes in chain (stop counting if chain is longer than another already found)
         int chainNum(int count, int bx, int by, int n) {
-
+/*
             int chainable = chainNeighbor(bx, by, n);
 
             int empty = 0;
@@ -347,6 +349,8 @@ class Board {
                 }
                 return count;
             }
+            */
+           return 0;
         }
         
 
@@ -450,14 +454,50 @@ bool findFile(FILE** fp, const char* fileName) {
     return *fp != NULL;
 }
 /* It occurs to me that I do not know how to get the move properly. This is currently wrong. DEBUG THIS*/
+// [name][space(s)][numeral],[numeral][space(s)][numeral],[numeral][space(s)]
 Edge* stringToEdge(char* moveString) { 
-    char* moveCopy = (char*)malloc(200*sizeof(char));
-    strncpy(moveCopy, moveString, 200);
-    strtok(moveCopy," "); //gets rid of the name
-    int y1 = atoi(strtok(moveCopy,","));
-    int x1 = atoi(strtok(moveCopy," "));
-    int y2 = atoi(strtok(moveCopy,","));
-    int x2 = atoi(strtok(moveCopy,",")); //not sure last delim is correct
+    char row1[3];
+    char col1[3];
+    char row2[3];
+    char col2[3];
+
+    row1[2] = '\0';
+    col1[2] = '\0';
+    row2[2] = '\0';
+    col2[2] = '\0';
+
+    int length = strlen(moveString);
+    bool firstFound = false;
+    char curChar = moveString[0];
+    char searchChar = ',';
+
+    for(int i = 0; i < length; i++) {
+        curChar = moveString[i];
+        if(curChar == searchChar) {
+            if(!firstFound) {
+                row1[0] = moveString[i-2];
+                row1[1] = moveString[i-1];
+
+                col1[0] = moveString[i+1];
+                col1[1] = moveString[i+2];
+                firstFound = true;
+                i = i+3; //to skip numerals
+            }
+            else {
+                row2[0] = moveString[i-2];
+                row2[1] = moveString[i-1];
+
+                col2[0] = moveString[i+1];
+                col2[1] = moveString[i+2];
+                break;
+            }
+        }
+    }
+
+    int y1 = atoi(row1);
+    int x1 = atoi(col1);
+    int y2 = atoi(row2);
+    int x2 = atoi(col2); 
 
     int lowestY = min(y1,y2);
     int lowestX = min(x1,x2);
@@ -471,12 +511,12 @@ Edge* stringToEdge(char* moveString) {
     return newEdge;
 }
 
-Edge* extractMove(FILE* moveFP, int size) {
+Edge* extractMove(FILE** moveFP) {
     char moveString[200];
     printf("b4 fread %d \n", moveFP);
-    fread(moveString, sizeof(moveString), 1, moveFP);
+    fread(moveString, sizeof(moveString), 1, *moveFP);
     printf("after fread \n");
-    fclose(moveFP);
+    fclose(*moveFP);
     return stringToEdge(moveString);
 }
 
@@ -496,15 +536,46 @@ void writeMove(Edge* moveEdge) {
     fclose(local_moveFP);
 }
 
+void findError(Edge* move) {
+    int* moveCoords = move->getCoords();
+    bool verticalMove = moveCoords[0] == moveCoords[2]; 
+    bool horizontalMove = moveCoords[1] == moveCoords[3]; 
+
+    bool check1 = !verticalMove && !horizontalMove;
+    bool check2 = verticalMove && horizontalMove;
+    bool check3 = moveCoords[0] < 0 || moveCoords[1] < 0 || moveCoords[2] < 0 || moveCoords[3] < 0;
+    bool check4 = moveCoords[0] > BOARD_HEIGHT+1 || moveCoords[2] > BOARD_HEIGHT+1 || moveCoords[1] > BOARD_WIDTH+1 ||moveCoords[3] > BOARD_WIDTH+1;  
+
+    if(check1 || check2) { 
+        printf("INVALID Opponenet Move \n");
+    }
+    if(check3 || check4) {
+        printf("Opponenet's Move OUT OF BOUNDS\n");
+    }
+    if(!check1 && !check2 && !check3 && !check4) { // if it a valid edge AND the ref has reported that the game is over, the move must be a a filled edge
+        printf("Opponents move is an ALREADY FILLED EDGE");
+    }
+    printf("Opponent's coordinantes: %d,%d, %d,%d ", moveCoords[0],moveCoords[1],moveCoords[2],moveCoords[3]);
+}
+
 bool handleEndGame() {
-    FILE* endFP;
+    FILE* endFP = (FILE*)malloc(sizeof(FILE*));
     if(findFile(&endFP, endFileName)) {
+        //print referee error
         char endTxt[200];
         fread(endTxt, 200, 1, endFP);
         printf("%s", endTxt);
         fclose(endFP);
+        free(endFP);
+        //find own error 
+        FILE* moveFile = (FILE*)malloc(sizeof(FILE*));
+        findFile(&moveFile, moveFileName);
+        findError(extractMove(&moveFile));
+        free(moveFile);
+
         return true;
     }   
+    free(endFP);
     return false;
 }
 
@@ -518,7 +589,8 @@ Board* handleOppTurn(Board* currentBoard) {
     if(!fileStat->st_size > 0) { //first move with an empty move file
         return currentBoard; 
     }
-    oppMove = extractMove(moveFP, fileStat->st_size); // this fcn also closes moveFP
+    oppMove = extractMove(&moveFP); // this fcn also closes moveFP
+
     printf("extracted move\n");
     if(!oppMove->equals(fakeMove)) { // dont update board if opp passes 
         nextBoard = currentBoard->move(currentBoard, oppMove, 2);
@@ -539,7 +611,7 @@ Edge* generateRandomMove(Board* currBoard) {
     return currBoard->getMoves();
 }
 
-// current todo. TEST board, TEST legal move list, and random move maker.
+// current issues, move file not closed properly in some place, board no update correctly
 // Testable program now. Will make first legal move
 int main(int argc, char** argv) {
     
@@ -567,7 +639,7 @@ int main(int argc, char** argv) {
             if(!pass) { //take our turn if not passed
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
-
+                printf("my move %d, %d, %d, %d", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
                 maxChain = 10000;
                 //use when done testing with generateRandomMove:
                 //
@@ -578,10 +650,10 @@ int main(int argc, char** argv) {
             }
             t = clock() - t;
             printf ("I took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
-            sleep(105); //wait for referee to update. 
+            Sleep(105);
         }
         else {
-            sleep(10); //not our turn, keep waiting.
+            Sleep(10);
         }
     }
     return 0;

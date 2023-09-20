@@ -5,3 +5,4 @@
 move_file
 *.dSYM
 .vscode/*
+__pycache__*
