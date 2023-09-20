@@ -64,8 +64,6 @@ class Box {
 
     //going clockwise from top
     
-    bool chainable[4] = {false, false, false, false};
-
     public:
         /*Constructor for Box */
         Edge *edges[4];
@@ -184,7 +182,7 @@ class Board {
             bool verticalMove = moveCoords[1] == moveCoords[3]; 
             bool horizontalMove = moveCoords[0] == moveCoords[2]; 
 
-            if(!verticalMove && !horizontalMove || verticalMove && horizontalMove) { //hopefully this never happens :)
+            if((!verticalMove && !horizontalMove) || (verticalMove && horizontalMove)) { //hopefully this never happens :)
                 printf("Something went wrong with move coordinates\n");
                 printf("Current coordinantes: %d,%d, %d,%d ", moveCoords[0],moveCoords[1],moveCoords[2],moveCoords[3]);
             }
@@ -318,7 +316,7 @@ class Board {
             newArr[possibleSide] = true;
 
             int emptySide = 0;
-            for (int i; i < 4; i++) {
+            for (int i = 0; i < 4; i++) {
                 if (newArr[i] == false) {
                     emptySide = i;
                 }
