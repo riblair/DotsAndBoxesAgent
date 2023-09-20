@@ -213,8 +213,8 @@ class Board {
                 somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, currMove, player);
             }
             else { //this is a vertical move and will affect two cells
-                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(3, currMove, player);
-                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(1, currMove, player);
+                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, currMove, player);
+                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, currMove, player);
             }
 
             if(somethingFilled) {
@@ -610,6 +610,7 @@ Board* handleOppTurn(Board* currentBoard) {
     struct stat* fileStat = (struct stat*)malloc(sizeof(struct stat));
     stat(moveFileName,fileStat);
     if(!(fileStat->st_size > 0)) { //first move with an empty move file
+        fclose(moveFP);
         return currentBoard; 
     }
     oppMove = extractMove(&moveFP); // this fcn also closes moveFP
@@ -666,7 +667,7 @@ int main(int argc, char** argv) {
                 maxChain = 10000;
                 //use when done testing with generateRandomMove:
                 //int minimaxNum = minimax(localBoard, 5, true, -100000, 100000);
-
+                bestMove->fill();
                 localBoard = localBoard->move(&localBoard, &bestMove, 1);
                 localBoard->setPass(false); //when player updates board, never handle passing
                 writeMove(bestMove); //replace with bestMove
@@ -680,7 +681,6 @@ int main(int argc, char** argv) {
         }
     }
     return 0;
-
     /*  On Start:
         Make board object 
         Create list of legal moves (all edges)
