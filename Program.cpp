@@ -15,6 +15,10 @@ const char* passFileName = "Clairvoyance.pass";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
 
+int maxChain;
+
+int test2 = 0;
+
 class Edge {
     
     bool filled = false;
@@ -133,7 +137,9 @@ class Board {
     public:
         Box* allBoxes[BOARD_HEIGHT][BOARD_WIDTH];
 
-        Board() { // for beginning  
+        Board() { // for beginning 
+            myScore = 0;
+            enemyScore = 0; 
             this->mostRecentMove = NULL;
             this->nextPass = false;
             Edge *topEdge, *rightEdge, *bottomEdge, *leftEdge;
@@ -159,8 +165,10 @@ class Board {
             }
         }
         // this should be used to make a board from a previous board state
-        Board(Board** prevBoard, Edge** currMove, int player) { 
+        Board(Board** prevBoard, Edge** currMove, int player, int ms, int es) { 
             this->mostRecentMove = *currMove;
+            myScore = ms;
+            enemyScore = es;
             //copy all boxes, update only relevant boxes
             for(int i = 0; i < BOARD_HEIGHT; i++) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
@@ -239,6 +247,8 @@ class Board {
 
         //Test this function
         Edge* getMoves() { 
+            test2 = 0;
+
             Edge* moveList;
             moveList = new Edge(0, 0, 0, 0); // a fake move pointer (not THE fake move pointer)
             Edge* headNode = moveList;
@@ -257,21 +267,30 @@ class Board {
                     if(i == 0 && !boxEdges[0]->getFilled()) { //only add top edge if top and not filled
                         headNode->nextEdge = boxEdges[0];
                         headNode = headNode->nextEdge;
+
+                        test2 += 1;
                     }
                     if(!boxEdges[1]->getFilled()) { //we can always add right edge if not filled
                         headNode->nextEdge = boxEdges[1];
                         headNode = headNode->nextEdge;
+
+                        test2 += 1;
                     }
                     if(!boxEdges[2]->getFilled()) { //we can always add bottom edge if not filled
                         headNode->nextEdge = boxEdges[2];
                         headNode = headNode->nextEdge;
+
+                        test2 += 1;
                     }
                     if(j == 0 && !boxEdges[3]->getFilled()) {//only add left edge if top and not filled
                         headNode->nextEdge = boxEdges[3];
                         headNode = headNode->nextEdge;
+
+                        test2 += 1;
                     }
                 }
             }
+            //printf("list length: %d\n", test2);
             return moveList->nextEdge;
         }
         // DONE?
@@ -281,7 +300,7 @@ class Board {
                 return this;
             }
             else {
-                Board* nextBoard = new Board(curBoard, theMove, player);
+                Board* nextBoard = new Board(curBoard, theMove, player, myScore, enemyScore);
                 return nextBoard;
             }
         }
@@ -306,7 +325,14 @@ class Board {
             else if (side == 3) {
                 neighborX -= 1;
             }
-            return allBoxes[neighborX][neighborY];
+
+            if ((neighborX >= 0) && (neighborY >= 0)) {
+                return allBoxes[neighborX][neighborY];
+            }
+            else {
+                return NULL;
+            }
+            
         }
 
         //return side with chainable neighbor (or 5 if no sides are chainable)
@@ -321,7 +347,13 @@ class Board {
                     emptySide = i;
                 }
             }
-            Box* neighbor = getNeighbor(bx,by,emptySide);
+            
+            Box* neighbor = this->getNeighbor(bx,by,emptySide);
+
+            if (neighbor == NULL) {
+                return 5;
+            }
+
             if (neighbor->getFilled() != 2) {
                 emptySide = 5;
             }
@@ -331,8 +363,9 @@ class Board {
         
         //return number of boxes in chain (stop counting if chain is longer than another already found)
         int chainNum(int count, int bx, int by, int n) {
-/*
+            
             int chainable = chainNeighbor(bx, by, n);
+            printf("a chain at last\n");
 
             int empty = 0;
             if (chainable >= 2) {
@@ -352,8 +385,8 @@ class Board {
                 }
                 return count;
             }
-            */
-           return 0;
+            
+            return 0;
         }
 
         int getScore() {
@@ -365,37 +398,51 @@ class Board {
             int chain = 0;
             int eval = getScore();
 
+            //printf("checkpoint score: %d\n", eval);
+
             int bx = mostRecentMove->getCoords()[1];
             int by = mostRecentMove->getCoords()[0];
 
+            bool noPass = false;
+            //bool noPass = !(nextPass);
+
             //if opponents turn to move (not pass), count possible chain
-            if (nextPass == false) {
+            if ((noPass) && (mostRecentMove != NULL)) {
+                printf("enemy does not pass\n");
+
                 bool isHorizontal = true;
                 if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
                     isHorizontal = false;
                 }
+
+
+                
                 if (isHorizontal) {
                     //if upper box exists
-                    if (allBoxes[bx][by-1] != NULL){
+                    if ((allBoxes[bx][by-1] != NULL) && ((by - 1) >= 0)){
                         chain += chainNum(0, bx, by - 1, 2);
                     }
 
                     //if lower box exists
-                    if (allBoxes[bx][by] != NULL){
+                    if ((allBoxes[bx][by] != NULL) && (by <= 9)){
                         chain += chainNum(0, bx, by, 0);
                     }
                 }
                 else {
+                    
                     //if left box exists
-                    if (allBoxes[bx-1][by] != NULL){
+                    if ((allBoxes[bx-1][by] != NULL) && (bx - 1 >= 0)){
                         chain += chainNum(0, bx - 1, by, 1);
                     }
 
                     //if right box exists
-                    if (allBoxes[bx][by] != NULL){
+                    if ((allBoxes[bx][by] != NULL) && (bx <= 9)){
                         chain += chainNum(0, bx, by, 3);
+                        
                     }
+                    
                 }
+                
             }
 
             eval -= chain;
@@ -406,7 +453,6 @@ class Board {
 };
 
 Edge* bestMove;
-int maxChain;
 
 int max(int x, int y) {
     int m = x;
@@ -424,22 +470,29 @@ int min(int x, int y) {
     return m;
 }
 
+int test = 0;
 int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
 
+    //printf("checkpoint 1, depth %d\n", depth);
+
     if (board->getMoves() == NULL) {
+        //printf("checkpoint terminal\n");
         return board->getScore();
     }
+
     if (depth == 0) {
+        //printf("checkpoint depth\n");
         return board->getEval();
     }
-
-
 
     if (isMax) {
         int maxEval = -100000;
         Edge* moves = board->getMoves();
-        while(moves != NULL) {
-            Board* childBoard = board->move(&childBoard, &moves, 1);
+        //printf("checkpoint isMax\n");
+        while(moves != nullptr) {
+            //printf("checkpoint 4\n");
+            
+            Board* childBoard = board->move(&board, &moves, 1);
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
             if (eval > maxEval) {
                 maxEval = eval;
@@ -449,15 +502,20 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
             if (beta <= alpha) {
                 break;
             }
+            test = test + 1;
+            //printf("test: %d\n", test);
+            
             moves = moves->nextEdge;
         }
+        //printf("finished loop, next: %d\n", moves->getFilled());
         return maxEval;
     }
     else {
         int minEval = 100000;
         Edge* moves = board->getMoves();
+        printf("checkpoint notMax\n");
         while(moves != NULL) {
-            Board* childBoard = board->move(&childBoard, &moves, 2);
+            Board* childBoard = board->move(&board, &moves, 2);
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
@@ -546,7 +604,7 @@ Edge* extractMove(FILE** moveFP) {
 char* edgeToString(Edge* edge) { 
     char* edgeString = (char*)malloc(20*sizeof(char)); // we have no way to close this, may cause memory leak :)
     int* coords = edge->coords;
-    int outputNum = snprintf(edgeString, 24, "Clairvoyance %d,%d, %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
+    int outputNum = snprintf(edgeString, 24, "Clairvoyance %d,%d %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
     printf("Sprintf output %d, %s\n", outputNum,edgeString);
     return edgeString;
 }
@@ -621,14 +679,6 @@ Board* handleOppTurn(Board* currentBoard) {
     return nextBoard; 
 }
 
-bool handlePass() {
-    FILE* passFP = NULL;
-    bool needtoPass = findFile(&passFP,passFileName);
-    if(needtoPass) writeMove(fakeMove);
-    fclose(passFP);
-    return needtoPass;
-}
-
 Edge* generateRandomMove(Board* currBoard) {
     return currBoard->getMoves();
 }
@@ -642,32 +692,39 @@ int main(int argc, char** argv) {
     Board* localBoard = new Board(); 
     printf("no crash\n");
     bool pass;
+    int minimaxNum;
     clock_t t;
     FILE* goFile = (FILE*)malloc(sizeof(FILE*));
+    FILE* passFile = (FILE*)malloc(sizeof(FILE*));
     
     /* We Loop until the game is over */
     while (true) {
-         if(findFile(&goFile, goFileName)) {
+        bool go = findFile(&goFile, goFileName);
+        fclose(goFile);
+        pass = findFile(&passFile, passFileName);
+        fclose(passFile);
+        if(go || pass) {
             printf("found go file!\n");
-            fclose(goFile);
+            //fclose(goFile);
             // start timer
             t = clock();
             if(handleEndGame()) break; //handles ending game if endgame file exists
             printf("done endgame!\n");
             localBoard =  handleOppTurn(localBoard); // extracts opp move and updates current board
             printf("done opp turn!\n");
-            pass = handlePass(); // handles passing if pass file exists
+            if(pass){ writeMove(fakeMove);} // handles passing if pass file exists
 
             if(!pass) { //take our turn if not passed
+                maxChain = 10000;
+
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
-                printf("my move %d, %d, %d, %d", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
-                maxChain = 10000;
                 //use when done testing with generateRandomMove:
-                //int minimaxNum = minimax(localBoard, 5, true, -100000, 100000);
+                minimaxNum = minimax(localBoard, 1, true, -100000, 100000);
+                printf("my move %d, %d, %d, %d\n", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
                 bestMove->fill();
                 localBoard = localBoard->move(&localBoard, &bestMove, 1);
-                localBoard->setPass(false); //when player updates board, never handle passing
+                //localBoard->setPass(false); //when player updates board, never handle passing
                 writeMove(bestMove); //replace with bestMove
             }
             t = clock() - t;
