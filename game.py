@@ -4,6 +4,7 @@ import pygame
 import core_gameplay as gp
 import display as disp
 from dotsandboxes import generateEdges
+import time
 from external_players import external_player
 
 # Each AI function will have its own file to allow for more modular creation
@@ -59,6 +60,8 @@ class Game:
             if self.winner != gp.NO_MARKER:
 
                 self.end_game()
+                running = False
+                time.sleep(5)
                 continue
 
             current_marker = self.markers[self.current_player]
@@ -110,17 +113,18 @@ class Game:
                     self.p2_points += points
 
                 # check if no more moves left (end game)
-                    if self.moves > 162:
-                        # generate end game flag
-                        if self.p1_points > self.p2_points:
-                            self.winner = gp.MARKERS[0]
-                            # p1 wins
-                        elif self.p2_points > self.p1_points:
-                            self.winner = gp.MARKERS[1]
-                            # p2 wins
-                        else:
-                            # draw
-                            self.winner = gp.DRAW
+                if self.moves > len(self.board) - 1:
+                    # generate end game flag
+                    if self.p1_points > self.p2_points:
+                        self.winner = gp.MARKERS[0]
+                        # p1 wins
+                    elif self.p2_points > self.p1_points:
+                        self.winner = gp.MARKERS[1]
+                        # p2 wins
+                    else:
+                        # draw
+                        self.winner = gp.DRAW
+                    self.end_game()
                     # end the game
                 # if points = 0, change turns
                 if points == 0:
