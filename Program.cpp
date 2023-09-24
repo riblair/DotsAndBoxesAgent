@@ -19,6 +19,8 @@ int maxChain;
 
 int test2 = 0;
 
+// Delete approach not working, Try and make mailable board stuff. 
+
 class Edge {
     
     bool filled = false;
@@ -35,6 +37,10 @@ class Edge {
 
             this->nextEdge = NULL;
         }
+
+        // ~Edge() {
+        //     printf("Edge pls go away\n");
+        // }
 
         void fill() {
             this->filled = true;
@@ -105,16 +111,20 @@ class Box {
             return isFilled;
         }
 
+        void setFilled(int f) {
+            filled = f;
+        }
+
+        int getFilled() {
+            return filled;
+        }
+
         void setOwned(int o) {
             owned = o;
         }
 
         int getOwned() {
             return owned;
-        }
-
-        int getFilled() {
-            return filled;
         }
 
         int getBoxX() {
@@ -126,6 +136,33 @@ class Box {
         }
 
 };
+
+Edge* edgeCopy(Edge** original) {
+    int moveCoords[4]; 
+    moveCoords[0] = (*original)->getCoords()[0];
+    moveCoords[1] = (*original)->getCoords()[1];
+    moveCoords[2] = (*original)->getCoords()[2];
+    moveCoords[3] = (*original)->getCoords()[3];
+
+    Edge* copy = new Edge(moveCoords[0], moveCoords[1],moveCoords[2],moveCoords[3]);
+    if((*original)->getFilled()) copy->fill();
+    // NOT COPYING NEXTEDGE
+    return copy;
+}
+
+ Box* boxCopy(Box** original) {
+    
+    Edge* copyTop = edgeCopy(&(*original)->edges[0]);
+    Edge* copyRight = edgeCopy(&(*original)->edges[1]);
+    Edge* copyBot = edgeCopy(&(*original)->edges[2]);
+    Edge* copyLeft = edgeCopy(&(*original)->edges[3]);
+
+    Box* boxCopy = new Box(copyTop, copyRight, copyBot, copyLeft, (*original)->getBoxX(),(*original)->getBoxY());
+    boxCopy->setOwned((*original)->getOwned());
+    boxCopy->setFilled((*original)->getFilled());
+
+    return boxCopy;
+ }
 
 class Board {
     int myScore; // my boxes
@@ -166,13 +203,21 @@ class Board {
         }
         // this should be used to make a board from a previous board state
         Board(Board** prevBoard, Edge** currMove, int player, int ms, int es) { 
+
+            // curMove should be a copy of a pointer, and not the actual move.
             this->mostRecentMove = *currMove;
             myScore = ms;
             enemyScore = es;
             //copy all boxes, update only relevant boxes
+
+            Box* copyBox;
+
+            // HEY, this now makes two equivalent edges for adjacent boxes. Might be an issue, will cross that bridge IF it arises. 
             for(int i = 0; i < BOARD_HEIGHT; i++) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
-                    allBoxes[i][j] = (*prevBoard)->allBoxes[i][j];
+                    copyBox = boxCopy(&(*prevBoard)->allBoxes[i][j]);
+                    // copy boxes, then
+                    allBoxes[i][j] = copyBox;
                 }
             }
             /* relevant boxes are defined as boxes whose Edge needs to be updated
@@ -198,15 +243,15 @@ class Board {
             bool somethingFilled = false;
 
             bool topRowMove = horizontalMove && moveCoords[0] == 0;
-            bool botRowMove = moveCoords[0] == BOARD_HEIGHT+1; 
+            bool botRowMove = moveCoords[0] == BOARD_HEIGHT; 
             bool leftRowMove = verticalMove && moveCoords[1] == 0;
-            bool rightRowMove = moveCoords[1] == BOARD_WIDTH+1;
+            bool rightRowMove = moveCoords[1] == BOARD_WIDTH;
 
             if(topRowMove) {
                 somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, currMove, player);
             }
             else if(rightRowMove) {
-                somethingFilled = allBoxes[moveCoords[0]-1][moveCoords[1]-1]->updateBox(1, currMove, player);
+                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, currMove, player);
             }
             else if(botRowMove) {
                 somethingFilled = allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, currMove, player);
@@ -250,7 +295,7 @@ class Board {
             test2 = 0;
 
             Edge* moveList;
-            moveList = new Edge(0, 0, 0, 0); // a fake move pointer (not THE fake move pointer)
+            moveList = fakeMove;
             Edge* headNode = moveList;
             if(this->nextPass) {
                 return moveList;
@@ -291,16 +336,20 @@ class Board {
                 }
             }
             //printf("list length: %d\n", test2);
+
             return moveList->nextEdge;
         }
         // DONE?
         Board* move(Board** curBoard, Edge** theMove, int player) { 
-            if((*theMove)->equals(new Edge(0,0,0,0))) {
+
+            if((*theMove)->equals(fakeMove)) {
                 this->nextPass = false;
                 return this;
             }
             else {
-                Board* nextBoard = new Board(curBoard, theMove, player, myScore, enemyScore);
+                Edge* copy = edgeCopy(theMove);
+                copy->fill();
+                Board* nextBoard = new Board(curBoard, &copy, player, myScore, enemyScore);
                 return nextBoard;
             }
         }
@@ -400,6 +449,7 @@ class Board {
 
             //printf("checkpoint score: %d\n", eval);
 
+            // get box coords
             int bx = mostRecentMove->getCoords()[1];
             int by = mostRecentMove->getCoords()[0];
 
@@ -452,6 +502,19 @@ class Board {
     
 };
 
+void deleteBoard(Board** oldBoard) {
+    for(int i = 0; i < BOARD_HEIGHT; i++) {
+        for(int j = 0; j < BOARD_WIDTH; j++) {
+            for(int k = 0; k < 4; k++) {
+                delete((*oldBoard)->allBoxes[i][j]->edges[k]);
+            }
+            delete((*oldBoard)->allBoxes[i][j]);
+        }
+    }
+    // delete((*oldBoard)->allBoxes);
+    delete((*oldBoard));
+}
+
 Edge* bestMove;
 
 int max(int x, int y) {
@@ -475,55 +538,61 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
 
     //printf("checkpoint 1, depth %d\n", depth);
 
-    if (board->getMoves() == NULL) {
+    if (depth == 0) {
+        //printf("checkpoint depth\n");
+        return board->getEval(); // should be same as getScore() at terminal node.
+    }
+
+    Edge* moves = board->getMoves();
+    if (moves == NULL) {
         //printf("checkpoint terminal\n");
         return board->getScore();
     }
-
-    if (depth == 0) {
-        //printf("checkpoint depth\n");
-        return board->getEval();
-    }
-
+    Board* childBoard;
     if (isMax) {
         int maxEval = -100000;
-        Edge* moves = board->getMoves();
+        
         //printf("checkpoint isMax\n");
         while(moves != nullptr) {
             //printf("checkpoint 4\n");
             
-            Board* childBoard = board->move(&board, &moves, 1);
+            childBoard = board->move(&board, &moves, 1);
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
+            
             if (eval > maxEval) {
                 maxEval = eval;
                 alpha = max(maxEval, alpha);
-                bestMove = moves;
+                bestMove = edgeCopy(&moves);
             }
             if (beta <= alpha) {
                 break;
             }
             test = test + 1;
-            //printf("test: %d\n", test);
+            printf("test: %d\n", test);
             
+
             moves = moves->nextEdge;
         }
-        //printf("finished loop, next: %d\n", moves->getFilled());
+        // printf("finished loop, next: %d\n", moves->getFilled());
+
+        deleteBoard(&childBoard);
         return maxEval;
     }
     else {
         int minEval = 100000;
-        Edge* moves = board->getMoves();
         printf("checkpoint notMax\n");
         while(moves != NULL) {
-            Board* childBoard = board->move(&board, &moves, 2);
+            childBoard = board->move(&board, &moves, 2);
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
             if (beta <= alpha) {
                 break;
             }
+            
             moves = moves->nextEdge;
         }
+        deleteBoard(&childBoard);
         return minEval;
     }
 };
@@ -623,7 +692,7 @@ void findError(Edge* move) {
     bool check1 = !verticalMove && !horizontalMove;
     bool check2 = verticalMove && horizontalMove;
     bool check3 = moveCoords[0] < 0 || moveCoords[1] < 0 || moveCoords[2] < 0 || moveCoords[3] < 0;
-    bool check4 = moveCoords[0] > BOARD_HEIGHT+1 || moveCoords[2] > BOARD_HEIGHT+1 || moveCoords[1] > BOARD_WIDTH+1 ||moveCoords[3] > BOARD_WIDTH+1;  
+    bool check4 = moveCoords[0] > BOARD_HEIGHT || moveCoords[2] > BOARD_HEIGHT || moveCoords[1] > BOARD_WIDTH ||moveCoords[3] > BOARD_WIDTH;  
 
     if(check1 || check2) { 
         printf("INVALID Opponenet Move \n");
@@ -720,7 +789,7 @@ int main(int argc, char** argv) {
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
                 //use when done testing with generateRandomMove:
-                minimaxNum = minimax(localBoard, 1, true, -100000, 100000);
+                minimaxNum = minimax(localBoard, 3, true, -100000, 100000); // 3 produced a move that gave the enemy a box. No Bueno
                 printf("my move %d, %d, %d, %d\n", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
                 bestMove->fill();
                 localBoard = localBoard->move(&localBoard, &bestMove, 1);
@@ -728,7 +797,7 @@ int main(int argc, char** argv) {
                 writeMove(bestMove); //replace with bestMove
             }
             t = clock() - t;
-            //printf ("I took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
+            printf ("I took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
             sleep(1);
         }
         else {
