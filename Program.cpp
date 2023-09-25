@@ -242,7 +242,6 @@ class Board {
                 }
             }
             //needs to happen afterwards to avoid null pointer
-            this->mostRecentMove = getEdgeInBoard(currMove);
             // for(int i = 0; i < BOARD_HEIGHT; i++) {
             //     for(int j = 0; j < BOARD_WIDTH; j++) {
             //         copyBox = boxCopy(&(*prevBoard)->allBoxes[i][j]);
@@ -253,9 +252,11 @@ class Board {
 
             // if a fakemove is copied, this makes an exact copy of the board;
             if((*currMove)->equals(fakeMove)) {
+                this->mostRecentMove = getEdgeInBoard(&(*prevBoard)->mostRecentMove);
                 this->nextPass = false;
                 return;
             }
+            this->mostRecentMove = getEdgeInBoard(currMove);
 
             /* relevant boxes are defined as boxes whose Edge needs to be updated
                 cases:  left / right / top/ bottom MOST edges -> only update 1 box
@@ -468,16 +469,21 @@ class Board {
         }
         // TODO : VERIFY - altered
         void moveMalleable(Edge** theMove, int player, bool makeMove, Edge* lastMove) { 
-            if(makeMove) {
-                this->mostRecentMove = getEdgeInBoard(theMove);
-            }
-            else {
-                this->mostRecentMove = getEdgeInBoard(&lastMove);
-            }
             if((*theMove)->equals(fakeMove)) {
                 this->nextPass = false;
             }
             else {
+                if(makeMove) {
+                    this->mostRecentMove = getEdgeInBoard(theMove);
+                }
+                else {
+                    if((lastMove)->equals(fakeMove)) {
+                        this->mostRecentMove = fakeMove;
+                    }
+                    else {
+                        this->mostRecentMove = getEdgeInBoard(&lastMove);
+                    }
+                }
                 // all coords are in order of lowest Y, lowest X, highest Y, highest X
                 int moveCoords[4]; 
                 moveCoords[0] = (*theMove)->getCoords()[0];
@@ -689,7 +695,7 @@ void deleteBoard(Board** oldBoard) {
     delete((*oldBoard));
 }
 
-Edge* bestMove;
+Edge* bestMove = new Edge(0,0,0,0);
 
 Board* currentBoard = new Board();
 Edge* m0 = new Edge(0,0,0,0);
@@ -722,15 +728,14 @@ int test = 0;
 int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     currentBoard = board; 
 
-    int eval = board->getEval();
-
     //printf("checkpoint 1, depth %d\n", depth);
     if (depth == 0) {
-        if (depth < DEPTH) {
-        Edge* recent = moveDepths[depth];
-        currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
-        moveDepths[depth] = moveDepths[depth+1];
-        }
+        int eval = board->getEval();
+        /* if (depth < DEPTH) {
+            Edge* recent = moveDepths[depth];
+            currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
+            moveDepths[depth] = moveDepths[depth+1];
+        }  */
 
         return eval; // should be same as getScore() at terminal node.
     }
@@ -743,16 +748,17 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     // at this point board childboard and current board all refer to the same object,
     // any changes made to ANY of these will alter the other ones no matter what. 
     // IF you want an exact copy, use new Board(&previousBoard, &fakeMove, 0, previousBoard->myScore, previousBoard->enemyScore);
-    Board* childBoard = currentBoard;  
+    //Board* childBoard = currentBoard;  
     if (isMax) {
         int maxEval = -100000;
         
         while(moves != nullptr) {
             
             moveDepths[depth-1] = moves;
-            childBoard->moveMalleable(&moves, 1, true, NULL);
+            board->moveMalleable(&moves, 1, true, NULL);
+            //Board* childBoard = new Board(&board, &moves, 1, board->myScore, board->enemyScore);
             
-            int eval = minimax(childBoard, depth-1, false, alpha, beta);
+            int eval = minimax(board, depth-1, false, alpha, beta);
             if (eval > maxEval) {
                 maxEval = eval;
                 alpha = max(maxEval, alpha);
@@ -760,16 +766,20 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
                     bestMove = moves;
                 }
             }
+            //Edge* recent = moveDepths[depth-1];
+            currentBoard->moveMalleable(&moves, 1, false, moveDepths[depth]);
+            moveDepths[depth-1] = moveDepths[depth];
+
             if (beta <= alpha) {
                 break;
             }
             moves = moves->nextEdge;
         }
-        if (depth < DEPTH) {
+        /* if (depth < DEPTH) {
             Edge* recent = moveDepths[depth];
             currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
             moveDepths[depth] = moveDepths[depth+1];
-        }
+        } */
 
         return maxEval;
     }
@@ -777,22 +787,27 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         int minEval = 100000;
         while(moves != NULL) {
             moveDepths[depth-1] = moves;
-            childBoard->moveMalleable(&moves, 2, true, NULL);
+            board->moveMalleable(&moves, 2, true, NULL);
+            //Board* childBoard = new Board(&board, &moves, 2, board->myScore, board->enemyScore);
 
-            int eval = minimax(childBoard, depth-1, true, alpha, beta);
+            int eval = minimax(board, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
             beta = min(minEval, beta);
+
+            Edge* recent = moveDepths[depth-1];
+            currentBoard->moveMalleable(&moves, 2, false, moveDepths[depth]);
+            moveDepths[depth-1] = moveDepths[depth];
+
             if (beta <= alpha) {
                 break;
             }
-
             moves = moves->nextEdge;
         }
-        if (depth < DEPTH) {
+        /* if (depth < DEPTH) {
             Edge* recent = moveDepths[depth];
             currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
             moveDepths[depth] = moveDepths[depth+1];
-        }
+        } */
         return minEval;
     }
 };
@@ -986,8 +1001,8 @@ int main(int argc, char** argv) {
 
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
-                currentBoard = new Board(&localBoard, &fakeMove, 0, localBoard->myScore, localBoard->enemyScore); //make a copy and then do all stuff to that copy board
-                minimax(currentBoard, DEPTH, true, -100000, 100000); 
+                //currentBoard = new Board(&localBoard, &fakeMove, 0, localBoard->myScore, localBoard->enemyScore); //make a copy and then do all stuff to that copy board
+                minimax(localBoard, DEPTH, true, -100000, 100000); 
                 printf("my move %d, %d, %d, %d\n", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
                 bestMove->setFill(true);
                 //localBoard->moveMalleable(&moveDepths[DEPTH], 1);
