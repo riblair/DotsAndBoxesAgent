@@ -12,7 +12,7 @@ const int BOARD_WIDTH = 9; // boxes
 const int BOARD_HEIGHT = 9; // boxes
 const char* goFileName = "Clairvoyance.go";
 const char* passFileName = "Clairvoyance.pass";
-const char* endFileName = "end_file";
+const char* endFileName = "end_game";
 const char* moveFileName = "move_file";
 
 const int DEPTH = 3;
@@ -364,7 +364,7 @@ class Board {
                 }
             }
             //printf("list length: %d\n", test2);
-
+            headNode->nextEdge = NULL;
             return moveList->nextEdge;
         }
 
@@ -771,11 +771,6 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
             }
             moves = moves->nextEdge;
         }
-        /* if (depth < DEPTH) {
-            Edge* recent = moveDepths[depth];
-            currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
-            moveDepths[depth] = moveDepths[depth+1];
-        } */
 
         return maxEval;
     }
@@ -799,11 +794,6 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
             }
             moves = moves->nextEdge;
         }
-        /* if (depth < DEPTH) {
-            Edge* recent = moveDepths[depth];
-            currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
-            moveDepths[depth] = moveDepths[depth+1];
-        } */
         return minEval;
     }
 };
@@ -977,11 +967,11 @@ int main(int argc, char** argv) {
         fclose(goFile);
         pass = findFile(&passFile, passFileName);
         fclose(passFile);
+        //if(handleEndGame()) break; //handles ending game if endgame file exists
         
         if(go || pass) {
             
             t = clock(); // start timer
-            if(handleEndGame()) break; //handles ending game if endgame file exists
 
             handleOppTurn(&localBoard); // extracts opp move and updates current board
 
