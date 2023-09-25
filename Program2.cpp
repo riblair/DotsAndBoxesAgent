@@ -10,8 +10,8 @@
 
 const int BOARD_WIDTH = 9; // boxes
 const int BOARD_HEIGHT = 9; // boxes
-const char* goFileName = "Clairvoyance.go";
-const char* passFileName = "Clairvoyance.pass";
+const char* goFileName = "Clairvoyance2.go";
+const char* passFileName = "Clairvoyance2.pass";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
 
@@ -880,9 +880,9 @@ Edge* extractMove(FILE** moveFP) {
 
 // returns move with name
 char* edgeToString(Edge* edge) { 
-    char* edgeString = (char*)malloc(25*sizeof(char)); // we have no way to close this, may cause memory leak :)
+    char* edgeString = (char*)malloc(26*sizeof(char)); // we have no way to close this, may cause memory leak :)
     int* coords = edge->coords;
-    int outputNum = snprintf(edgeString, 24, "Clairvoyance %d,%d %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
+    int outputNum = snprintf(edgeString, 25, "Clairvoyance2 %d,%d %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
     printf("Sprintf output %d, %s\n", outputNum,edgeString);
     return edgeString;
 }
@@ -963,7 +963,7 @@ Edge* generateRandomMove(Board* currBoard) {
 // Testable program now. Will make first legal move
 int main(int argc, char** argv) {
     
-    printf("Clairvoyance starting\n");
+    printf("Clairvoyance2 starting\n");
     Board* localBoard = new Board(); 
 
     bool pass;
