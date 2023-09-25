@@ -15,7 +15,7 @@ const char* passFileName = "Clairvoyance.pass";
 const char* endFileName = "end_file";
 const char* moveFileName = "move_file";
 
-const int DEPTH = 2;
+const int DEPTH = 1;
 
 int maxChain;
 
@@ -38,10 +38,6 @@ class Edge {
             coords[3] = x2;
 
             this->nextEdge = NULL;
-        }
-
-        void fill() {
-            this->filled = true;
         }
 
         bool getFilled() {
@@ -87,55 +83,32 @@ class Box {
             edges[3] = e3;
             boxX = bX;
             boxY = bY;
+            filled = 0;
+            owned = 0;
         }
 
         //helper functions
 
         // This function updates filled, owned, and edges. Returns true if filled 
-        bool updateBox(int edgeNum, Edge** newEdge, int player) {
-            //Edge* currentEdge = edges[edgeNum];
+        // TODO : VERIFY
+        bool updateBox(int edgeNum, int player, bool makeMove) {
 
-            edges[edgeNum] =  *newEdge;
-            edges[edgeNum]->fill();
+            edges[edgeNum]->setFill(makeMove);
+
             int filledNum = 0;
-            bool isFilled = false;
+            
 
-            for (int i = 0; i < 4; i++) {
-                if (edges[i]->getFilled()) {
-                    filledNum += 1;
-                }
+            for(Edge* e : edges) {
+                if (e->getFilled()) filledNum += 1;
             }
 
-            if(filledNum == 4) { //box is captured
-                this->setOwned(player);
-                isFilled = true;
-            }
+            bool isFilled = filledNum == 4;
+
+            isFilled ? this->setOwned(player) : this->setOwned(0); // will perform first action if true, and second if false
 
             this->filled = filledNum;
             
             return isFilled;
-        }
-
-        bool undoUpdate(int edgeNum, Edge** newEdge, int player) {
-            edges[edgeNum] =  *newEdge;
-            edges[edgeNum]->setFill(false);
-            int filledNum = 0;
-            bool unFilled = false;
-
-            for (int i = 0; i < 4; i++) {
-                if (edges[i]->getFilled()) {
-                    filledNum += 1;
-                }
-            }
-
-            if(this->filled == 4) { //box is no longer captured
-                this->setOwned(0);
-                unFilled = true;
-            }
-
-            this->filled = filledNum;
-            
-            return unFilled;
         }
 
         void setFilled(int f) {
@@ -172,7 +145,7 @@ Edge* edgeCopy(Edge** original) {
     moveCoords[3] = (*original)->getCoords()[3];
 
     Edge* copy = new Edge(moveCoords[0], moveCoords[1],moveCoords[2],moveCoords[3]);
-    if((*original)->getFilled()) copy->fill();
+    copy->setFill((*original)->getFilled());
     // NOT COPYING NEXTEDGE
     return copy;
 }
@@ -192,13 +165,14 @@ Edge* edgeCopy(Edge** original) {
  }
 
 class Board {
-    int myScore; // my boxes
-    int enemyScore; //enemy boxes 
+    
     bool nextPass; 
     Edge* mostRecentMove;
     
 
     public:
+        int myScore; // my boxes
+        int enemyScore; //enemy boxes 
         Box* allBoxes[BOARD_HEIGHT][BOARD_WIDTH];
 
         Board() { // for beginning 
@@ -229,24 +203,60 @@ class Board {
             }
         }
         // this should be used to make a board from a previous board state
+        // TODO : VERIFY
         Board(Board** prevBoard, Edge** currMove, int player, int ms, int es) { 
 
-            // curMove should be a copy of a pointer, and not the actual move.
-            this->mostRecentMove = *currMove;
+            // for each box,
+            // set the rightmost and bottom most edges to a copy from the previous
+            // if top row, copy topEdge
+            // else, copy from THIS row-1
+            // if left row, copy leftEdge 
+            // else, copy from THIS col-1
+            
             myScore = ms;
             enemyScore = es;
             //copy all boxes, update only relevant boxes
 
             Box* copyBox;
-
-            // HEY, this now makes two equivalent edges for adjacent boxes. Might be an issue, will cross that bridge IF it arises. 
+            // now we make 
+            Edge *topEdge, *rightEdge, *bottomEdge, *leftEdge;
             for(int i = 0; i < BOARD_HEIGHT; i++) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
-                    copyBox = boxCopy(&(*prevBoard)->allBoxes[i][j]);
-                    // copy boxes, then
-                    allBoxes[i][j] = copyBox;
+                    if(j == 0) { //if in leftmost col
+                        leftEdge = edgeCopy(&(*prevBoard)->allBoxes[i][j]->edges[3]);
+                    }
+                    else {
+                        leftEdge = allBoxes[i][j-1]->edges[3];
+                    }
+                    if(i == 0) { //if in top row
+                        topEdge = edgeCopy(&(*prevBoard)->allBoxes[i][j]->edges[0]);
+                    }
+                    else {
+                        topEdge = allBoxes[i-1][j]->edges[0];
+                    }
+                    rightEdge = edgeCopy(&(*prevBoard)->allBoxes[i][j]->edges[1]);
+                    bottomEdge = edgeCopy(&(*prevBoard)->allBoxes[i][j]->edges[2]);
+
+                    allBoxes[i][j] = new Box(topEdge, rightEdge, bottomEdge, leftEdge, i, j);
+                    //allBoxes[i][j]->setFilled((*prevBoard)->allBoxes[i][j])
                 }
             }
+            //needs to happen afterwards to avoid null pointer
+            this->mostRecentMove = getEdgeInBoard(currMove);
+            // for(int i = 0; i < BOARD_HEIGHT; i++) {
+            //     for(int j = 0; j < BOARD_WIDTH; j++) {
+            //         copyBox = boxCopy(&(*prevBoard)->allBoxes[i][j]);
+            //         // copy boxes, then
+            //         allBoxes[i][j] = copyBox;
+            //     }
+            // }
+
+            // if a fakemove is copied, this makes an exact copy of the board;
+            if((*currMove)->equals(fakeMove)) {
+                this->nextPass = false;
+                return;
+            }
+
             /* relevant boxes are defined as boxes whose Edge needs to be updated
                 cases:  left / right / top/ bottom MOST edges -> only update 1 box
                         vertical edge -> update boxes left and right
@@ -275,24 +285,24 @@ class Board {
             bool rightRowMove = moveCoords[1] == BOARD_WIDTH;
 
             if(topRowMove) {
-                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, currMove, player);
+                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, player, true);
             }
             else if(rightRowMove) {
-                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, currMove, player);
+                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, player, true);
             }
             else if(botRowMove) {
-                somethingFilled = allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, currMove, player);
+                somethingFilled = allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, player, true);
             }
             else if(leftRowMove) { 
-                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, currMove, player);
+                somethingFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, player, true);
             }
             else if(horizontalMove) { //this is a horizontal move that affects two cells 
-                somethingFilled |= allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, currMove, player);
-                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, currMove, player);
+                somethingFilled |= allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, player, true);
+                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, player, true);
             }
             else { //this is a vertical move and will affect two cells
-                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, currMove, player);
-                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, currMove, player);
+                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, player, true);
+                somethingFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, player, true);
             }
 
             if(somethingFilled) {
@@ -317,7 +327,6 @@ class Board {
             this->enemyScore = enemyCurScore;
         }
 
-        //Test this function
         Edge* getMoves() { 
             test2 = 0;
 
@@ -359,77 +368,116 @@ class Board {
 
             return moveList->nextEdge;
         }
+
+    /* OLD CODE ?
         // DONE?
-        Board* move(Board** curBoard, Edge** theMove, int player) { 
+        // Board* move(Board** curBoard, Edge** theMove, int player) { 
 
-            if((*theMove)->equals(fakeMove)) {
-                this->nextPass = false;
-                return this;
-            }
-            else {
-                Edge* copy = edgeCopy(theMove);
-                copy->fill();
-                Board* nextBoard = new Board(curBoard, &copy, player, myScore, enemyScore);
-                return nextBoard;
-            }
-        }
+        //     if((*theMove)->equals(fakeMove)) {
+        //         this->nextPass = false;
+        //         return this;
+        //     }
+        //     else {
+        //         Edge* copy = edgeCopy(theMove);
+        //         copy->fill();
+        //         Board* nextBoard = new Board(curBoard, &copy, player, myScore, enemyScore);
+        //         return nextBoard;
+        //     }
+        // }
 
-        void undoMove(Edge** theMove, int player, Edge* newLastMove) {
+        // void undoMove(Edge** theMove, int player, Edge* newLastMove) {
             
-            this->mostRecentMove = newLastMove;
+        //     this->mostRecentMove = newLastMove;
 
-            // all coords are in order of lowest Y, lowest X, highest Y, highest X
+        //     // all coords are in order of lowest Y, lowest X, highest Y, highest X
+        //     int moveCoords[4]; 
+        //     moveCoords[0] = (*theMove)->getCoords()[0];
+        //     moveCoords[1] = (*theMove)->getCoords()[1];
+        //     moveCoords[2] = (*theMove)->getCoords()[2];
+        //     moveCoords[3] = (*theMove)->getCoords()[3];
+
+        //     bool verticalMove = moveCoords[1] == moveCoords[3]; 
+        //     bool horizontalMove = moveCoords[0] == moveCoords[2]; 
+
+        //     bool somethingUnFilled = false;
+
+        //     bool topRowMove = horizontalMove && moveCoords[0] == 0;
+        //     bool botRowMove = moveCoords[0] == BOARD_HEIGHT; 
+        //     bool leftRowMove = verticalMove && moveCoords[1] == 0;
+        //     bool rightRowMove = moveCoords[1] == BOARD_WIDTH;
+
+        //     if(topRowMove) {
+        //         somethingUnFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, player, false);
+        //     }
+        //     else if(rightRowMove) {
+        //         somethingUnFilled = allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, player, false);
+        //     }
+        //     else if(botRowMove) {
+        //         somethingUnFilled = allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, player, false);
+        //     }
+        //     else if(leftRowMove) { 
+        //         somethingUnFilled = allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, player, false);
+        //     }
+        //     else if(horizontalMove) { //this is a horizontal move that affects two cells 
+        //         somethingUnFilled |= allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2,player, false);
+        //         somethingUnFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, player, false);
+        //     }
+        //     else { //this is a vertical move and will affect two cells
+        //         somethingUnFilled |= allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, player, false);
+        //         somethingUnFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, player, false);
+        //     }
+
+        //     if(somethingUnFilled) {
+        //         this->updateScore();
+        //     }
+        //     this->nextPass = false;
+        // }
+    */
+        // TODO : VERIFY
+        Edge* getEdgeInBoard(Edge** edgeRef) {
             int moveCoords[4]; 
-            moveCoords[0] = (*theMove)->getCoords()[0];
-            moveCoords[1] = (*theMove)->getCoords()[1];
-            moveCoords[2] = (*theMove)->getCoords()[2];
-            moveCoords[3] = (*theMove)->getCoords()[3];
+                moveCoords[0] = (*edgeRef)->getCoords()[0];
+                moveCoords[1] = (*edgeRef)->getCoords()[1];
+                moveCoords[2] = (*edgeRef)->getCoords()[2];
+                moveCoords[3] = (*edgeRef)->getCoords()[3];
 
-            bool verticalMove = moveCoords[1] == moveCoords[3]; 
-            bool horizontalMove = moveCoords[0] == moveCoords[2]; 
+                bool verticalMove = moveCoords[1] == moveCoords[3]; 
+                bool horizontalMove = moveCoords[0] == moveCoords[2]; 
 
-            bool somethingUnFilled = false;
+                bool somethingFilled = false;
 
-            bool topRowMove = horizontalMove && moveCoords[0] == 0;
-            bool botRowMove = moveCoords[0] == BOARD_HEIGHT; 
-            bool leftRowMove = verticalMove && moveCoords[1] == 0;
-            bool rightRowMove = moveCoords[1] == BOARD_WIDTH;
+                bool topRowMove = horizontalMove && moveCoords[0] == 0;
+                bool botRowMove = moveCoords[0] == BOARD_HEIGHT; 
+                bool leftRowMove = verticalMove && moveCoords[1] == 0;
+                bool rightRowMove = moveCoords[1] == BOARD_WIDTH;
 
-            if(topRowMove) {
-                somethingUnFilled = allBoxes[moveCoords[0]][moveCoords[1]]->undoUpdate(0, theMove, player);
-            }
-            else if(rightRowMove) {
-                somethingUnFilled = allBoxes[moveCoords[0]][moveCoords[1]-1]->undoUpdate(1, theMove, player);
-            }
-            else if(botRowMove) {
-                somethingUnFilled = allBoxes[moveCoords[0]-1][moveCoords[1]]->undoUpdate(2, theMove, player);
-            }
-            else if(leftRowMove) { 
-                somethingUnFilled = allBoxes[moveCoords[0]][moveCoords[1]]->undoUpdate(3, theMove, player);
-            }
-            else if(horizontalMove) { //this is a horizontal move that affects two cells 
-                somethingUnFilled |= allBoxes[moveCoords[0]-1][moveCoords[1]]->undoUpdate(2, theMove, player);
-                somethingUnFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->undoUpdate(0, theMove, player);
-            }
-            else { //this is a vertical move and will affect two cells
-                somethingUnFilled |= allBoxes[moveCoords[0]][moveCoords[1]-1]->undoUpdate(1, theMove, player);
-                somethingUnFilled |= allBoxes[moveCoords[0]][moveCoords[1]]->undoUpdate(3, theMove, player);
-            }
+                // if its a vertical move, it will edge 1 from the coords moveCoord[0], moveCoord[1-1]
+                if(leftRowMove) {
+                    return allBoxes[moveCoords[0]][0]->edges[3];
+                }
+                if(topRowMove) {
+                    return allBoxes[0][moveCoords[1]]->edges[0];
+                }
+                if (verticalMove) {
+                    return allBoxes[moveCoords[0]][moveCoords[1]-1]->edges[1];
+                }
+                else { //horizontial move
+                    return allBoxes[moveCoords[0]-1][moveCoords[1]]->edges[2];
+                }
 
-            if(somethingUnFilled) {
-                this->updateScore();
-            }
-            this->nextPass = false;
         }
-
-        void moveMalleable(Edge** theMove, int player) { 
-
+        // TODO : VERIFY - altered
+        void moveMalleable(Edge** theMove, int player, bool makeMove, Edge* lastMove) { 
+            if(makeMove) {
+                this->mostRecentMove = getEdgeInBoard(theMove);
+            }
+            else {
+                this->mostRecentMove = getEdgeInBoard(&lastMove);
+            }
             if((*theMove)->equals(fakeMove)) {
                 this->nextPass = false;
             }
             else {
-                this->mostRecentMove = *theMove;
-
                 // all coords are in order of lowest Y, lowest X, highest Y, highest X
                 int moveCoords[4]; 
                 moveCoords[0] = (*theMove)->getCoords()[0];
@@ -448,24 +496,24 @@ class Board {
                 bool rightRowMove = moveCoords[1] == BOARD_WIDTH;
 
                 if(topRowMove) {
-                    somethingFilled = this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, theMove, player);
+                    somethingFilled = this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, player, makeMove);
                 }
                 else if(rightRowMove) {
-                    somethingFilled = this->allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, theMove, player);
+                    somethingFilled = this->allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, player, makeMove);
                 }
                 else if(botRowMove) {
-                    somethingFilled = this->allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, theMove, player);
+                    somethingFilled = this->allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, player, makeMove);
                 }
                 else if(leftRowMove) { 
-                    somethingFilled = this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, theMove, player);
+                    somethingFilled = this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, player, makeMove);
                 }
                 else if(horizontalMove) { //this is a horizontal move that affects two cells 
-                    somethingFilled |= this->allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, theMove, player);
-                    somethingFilled |= this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, theMove, player);
+                    somethingFilled |= this->allBoxes[moveCoords[0]-1][moveCoords[1]]->updateBox(2, player, makeMove);
+                    somethingFilled |= this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(0, player, makeMove);
                 }
                 else { //this is a vertical move and will affect two cells
-                    somethingFilled |= this->allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, theMove, player);
-                    somethingFilled |= this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, theMove, player);
+                    somethingFilled |= this->allBoxes[moveCoords[0]][moveCoords[1]-1]->updateBox(1, player, makeMove);
+                    somethingFilled |= this->allBoxes[moveCoords[0]][moveCoords[1]]->updateBox(3, player, makeMove);
                 }
 
                 if(somethingFilled) {
@@ -579,7 +627,7 @@ class Board {
             //bool noPass = !(nextPass);
 
             //if opponents turn to move (not pass), count possible chain
-            if ((noPass) && (mostRecentMove != NULL)) {
+            if ((noPass) && (mostRecentMove != NULL)) { //disabled for testing
                 printf("enemy does not pass\n");
 
                 bool isHorizontal = true;
@@ -669,6 +717,8 @@ int min(int x, int y) {
 }
 
 int test = 0;
+
+// the minimax function should not update the localboard in main, it should take in a copy
 int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     currentBoard = board; 
 
@@ -678,10 +728,9 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     if (depth == 0) {
         if (depth < DEPTH) {
         Edge* recent = moveDepths[depth];
-        currentBoard->undoMove(&recent, 2, moveDepths[depth+1]);
+        currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
         moveDepths[depth] = moveDepths[depth+1];
         }
-        //printf("checkpoint depth\n");
 
         return eval; // should be same as getScore() at terminal node.
     }
@@ -691,16 +740,17 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         //printf("checkpoint terminal\n");
         return board->getScore();
     }
-
-    Board* childBoard = currentBoard; 
+    // at this point board childboard and current board all refer to the same object,
+    // any changes made to ANY of these will alter the other ones no matter what. 
+    // IF you want an exact copy, use new Board(&previousBoard, &fakeMove, 0, previousBoard->myScore, previousBoard->enemyScore);
+    Board* childBoard = currentBoard;  
     if (isMax) {
         int maxEval = -100000;
         
-        //printf("checkpoint isMax\n");
         while(moves != nullptr) {
-            //printf("checkpoint 4\n");
+            
             moveDepths[depth-1] = moves;
-            childBoard->moveMalleable(&moves, 1);
+            childBoard->moveMalleable(&moves, 1, true, NULL);
             
             int eval = minimax(childBoard, depth-1, false, alpha, beta);
             if (eval > maxEval) {
@@ -717,7 +767,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         }
         if (depth < DEPTH) {
             Edge* recent = moveDepths[depth];
-            currentBoard->undoMove(&recent, 2, moveDepths[depth+1]);
+            currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
             moveDepths[depth] = moveDepths[depth+1];
         }
 
@@ -727,7 +777,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         int minEval = 100000;
         while(moves != NULL) {
             moveDepths[depth-1] = moves;
-            childBoard->moveMalleable(&moves, 2);
+            childBoard->moveMalleable(&moves, 2, true, NULL);
 
             int eval = minimax(childBoard, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
@@ -740,7 +790,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         }
         if (depth < DEPTH) {
             Edge* recent = moveDepths[depth];
-            currentBoard->undoMove(&recent, 2, moveDepths[depth+1]);
+            currentBoard->moveMalleable(&recent, 2, false, moveDepths[depth+1]);
             moveDepths[depth] = moveDepths[depth+1];
         }
         return minEval;
@@ -752,7 +802,7 @@ bool findFile(FILE** fp, const char* fileName) {
     *fp = fopen(fileName, "r");
     return *fp != NULL;
 }
-/* It occurs to me that I do not know how to get the move properly. This is currently wrong. DEBUG THIS*/
+
 // [name][space(s)][numeral],[numeral][space(s)][numeral],[numeral][space(s)]
 Edge* stringToEdge(char* moveString) { 
     char row1[3];
@@ -805,8 +855,7 @@ Edge* stringToEdge(char* moveString) {
 
     Edge* newEdge = new Edge(lowestY, lowestX, highestY, highestX); 
 
-    //free(moveString); // prob not neccesary
-    newEdge->fill();
+    newEdge->setFill(true);
     return newEdge;
 }
 
@@ -876,26 +925,24 @@ bool handleEndGame() {
     free(endFP);
     return false;
 }
-
-Board* handleOppTurn(Board* currentBoard) {
-    Edge* oppMove;
-    Board* nextBoard = currentBoard;
+// TODO:Verify - changed handling of fileStat to close, seems fine AFAIK
+void handleOppTurn(Board** currentBoard) {
+    // should update current board with new move
     FILE* moveFP = (FILE*)malloc(sizeof(FILE*));
     findFile(&moveFP, moveFileName); // should always find file
     struct stat* fileStat = (struct stat*)malloc(sizeof(struct stat));
     stat(moveFileName,fileStat);
-    if(!(fileStat->st_size > 0)) { //first move with an empty move file
+    bool Empty = fileStat->st_size == 0;
+    free(fileStat); // mybe
+    if(Empty) { //first move with an empty move file
         fclose(moveFP);
-        return currentBoard; 
+        return; 
     }
-    oppMove = extractMove(&moveFP); // this fcn also closes moveFP
 
-    printf("extracted move\n");
-    if(!oppMove->equals(fakeMove)) { // dont update board if opp passes 
-        currentBoard->moveMalleable(&oppMove, 2);
-    }
-    currentBoard->setPass(false); //when player updates board, never handle passing
-    return nextBoard; 
+    Edge* oppMove = extractMove(&moveFP); // this fcn also closes moveFP    
+    if(!oppMove->equals(fakeMove)) (*currentBoard)->moveMalleable(&oppMove, 2, true, NULL); // dont update board if opp passes
+
+    (*currentBoard)->setPass(false); //when player updates board, never handle passing
 }
 
 Edge* generateRandomMove(Board* currBoard) {
@@ -907,9 +954,8 @@ Edge* generateRandomMove(Board* currBoard) {
 int main(int argc, char** argv) {
     
     printf("Clairvoyance starting\n");
-
     Board* localBoard = new Board(); 
-    printf("no crash\n");
+
     bool pass;
     clock_t t;
     FILE* goFile = (FILE*)malloc(sizeof(FILE*));
@@ -921,31 +967,31 @@ int main(int argc, char** argv) {
         fclose(goFile);
         pass = findFile(&passFile, passFileName);
         fclose(passFile);
+        
         if(go || pass) {
-            printf("found go file!\n");
-            //fclose(goFile);
-            // start timer
-            t = clock();
+            
+            t = clock(); // start timer
             if(handleEndGame()) break; //handles ending game if endgame file exists
-            printf("done endgame!\n");
-            localBoard = handleOppTurn(localBoard); // extracts opp move and updates current board
-            printf("done opp turn!\n");
+
+            handleOppTurn(&localBoard); // extracts opp move and updates current board
+
             for (int i = 0; i <= DEPTH; i++) {
                 moveDepths[i] = localBoard->getMostRecentMove(); 
             }
-            if(pass){ writeMove(fakeMove);} // handles passing if pass file exists
-
-            if(!pass) { //take our turn if not passed
+            if(pass) {
+                writeMove(fakeMove); // handles passing if pass file exists
+            }
+            else{ //take our turn if not passed
                 maxChain = 10000;
 
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
-
-                minimax(localBoard, DEPTH, true, -100000, 100000); // 3 produced a move that gave the enemy a box. No Bueno
+                currentBoard = new Board(&localBoard, &fakeMove, 0, localBoard->myScore, localBoard->enemyScore); //make a copy and then do all stuff to that copy board
+                minimax(currentBoard, DEPTH, true, -100000, 100000); 
                 printf("my move %d, %d, %d, %d\n", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
-                bestMove->fill();
+                bestMove->setFill(true);
                 //localBoard->moveMalleable(&moveDepths[DEPTH], 1);
-                localBoard->moveMalleable(&bestMove, 1);
+                localBoard->moveMalleable(&bestMove, 1, true, NULL);
                 for (int i = 0; i <= DEPTH; i++) {
                     moveDepths[i] = localBoard->getMostRecentMove(); 
                 }
