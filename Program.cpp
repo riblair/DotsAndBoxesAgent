@@ -609,7 +609,7 @@ class Board {
                 return count;
             }
             
-            return 0;
+            //return 0;
         }
 
         int getScore() {
@@ -627,11 +627,11 @@ class Board {
             int bx = mostRecentMove->getCoords()[1];
             int by = mostRecentMove->getCoords()[0];
 
-            bool noPass = false;
-            //bool noPass = !(nextPass);
+            //bool noPass = false;
+            bool noPass = !(nextPass);
 
             //if opponents turn to move (not pass), count possible chain
-            if ((noPass) && (mostRecentMove != NULL)) { //disabled for testing
+            if (noPass) { //disabled for testing
                 printf("enemy does not pass\n");
 
                 bool isHorizontal = true;
@@ -639,28 +639,26 @@ class Board {
                     isHorizontal = false;
                 }
 
-
-                
                 if (isHorizontal) {
                     //if upper box exists
-                    if ((allBoxes[by-1][bx] != NULL) && ((by - 1) >= 0)){
+                    if (((by - 1) >= 0) && (allBoxes[by-1][bx] != NULL)){
                         chain += chainNum(0, bx, by - 1, 2);
                     }
 
                     //if lower box exists
-                    if ((allBoxes[by][bx] != NULL) && (by <= 9)){
+                    if ((by <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
                         chain += chainNum(0, bx, by, 0);
                     }
                 }
                 else {
                     
                     //if left box exists
-                    if ((allBoxes[by][bx-1] != NULL) && (bx - 1 >= 0)){
+                    if ((bx - 1 >= 0) && (allBoxes[by][bx-1] != NULL)){
                         chain += chainNum(0, bx - 1, by, 1);
                     }
 
                     //if right box exists
-                    if ((allBoxes[by][bx] != NULL) && (bx <= 9)){
+                    if ((bx <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
                         chain += chainNum(0, bx, by, 3);
                         
                     }
@@ -750,6 +748,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     if (isMax) {
         int maxEval = -100000;
         
+        maxChain = 10000;
         while(moves != nullptr) {
             
             moveDepths[depth-1] = moves;
@@ -983,7 +982,6 @@ int main(int argc, char** argv) {
                 writeMove(fakeMove); // handles passing if pass file exists
             }
             else{ //take our turn if not passed
-                maxChain = 10000;
 
                 /* GENERATE BEST MOVE */
                 bestMove = generateRandomMove(localBoard);
