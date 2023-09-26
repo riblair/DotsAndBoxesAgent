@@ -333,7 +333,9 @@ class Board {
             moveList = fakeMove;
             Edge* headNode = moveList;
             if(this->nextPass) {
-                return NULL;
+                //return NULL;
+                moveList->nextEdge = NULL;
+                return moveList;
             }
             /* for each box,   
                 add bottom and right edges if not filled, 
@@ -911,18 +913,16 @@ bool handleEndGame() {
         //print referee error
         char endTxt[200];
         fread(endTxt, 200, 1, endFP);
-        printf("%s", endTxt);
-        fclose(endFP);
-        free(endFP);
-        //find own error 
-        FILE* moveFile = (FILE*)malloc(sizeof(FILE*));
-        findFile(&moveFile, moveFileName);
-        findError(extractMove(&moveFile));
-        free(moveFile);
+        printf("%s\n", endTxt);
+
+        //FILE* moveFile = (FILE*)malloc(sizeof(FILE*));
+        //findFile(&moveFile, moveFileName);
+        //findError(extractMove(&moveFile));
 
         return true;
     }   
-    free(endFP);
+    //free(endFP);
+    fclose(endFP);
     return false;
 }
 // TODO:Verify - changed handling of fileStat to close, seems fine AFAIK
@@ -967,7 +967,8 @@ int main(int argc, char** argv) {
         fclose(goFile);
         pass = findFile(&passFile, passFileName);
         fclose(passFile);
-        //if(handleEndGame()) break; //handles ending game if endgame file exists
+
+        if(handleEndGame()) break; //handles ending game if endgame file exists
         
         if(go || pass) {
             
