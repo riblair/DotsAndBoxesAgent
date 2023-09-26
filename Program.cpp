@@ -558,118 +558,146 @@ class Board {
             
         }
 
-        //return side with chainable neighbor (or 5 if no sides are chainable)
-        int chainNeighbor(int bx, int by, int possibleSide) {
-            Box* curBox = allBoxes[by][bx];
-            bool newArr[4] = {(curBox->edges[0])->getFilled(), (curBox->edges[1])->getFilled(), (curBox->edges[2])->getFilled(), (curBox->edges[3])->getFilled()};
-            newArr[possibleSide] = true;
+        // //return side with chainable neighbor (or 5 if no sides are chainable)
+        // int chainNeighbor(int bx, int by, int possibleSide) {
+        //     Box* curBox = allBoxes[by][bx];
+        //     bool newArr[4] = {(curBox->edges[0])->getFilled(), (curBox->edges[1])->getFilled(), (curBox->edges[2])->getFilled(), (curBox->edges[3])->getFilled()};
+        //     newArr[possibleSide] = true;
 
-            int emptySide = 0;
-            for (int i = 0; i < 4; i++) {
-                if (newArr[i] == false) {
-                    emptySide = i;
-                }
-            }
+        //     int emptySide = 0;
+        //     for (int i = 0; i < 4; i++) {
+        //         if (newArr[i] == false) {
+        //             emptySide = i;
+        //         }
+        //     }
             
-            Box* neighbor = this->getNeighbor(bx,by,emptySide);
+        //     Box* neighbor = this->getNeighbor(bx,by,emptySide);
 
-            if (neighbor == NULL) {
-                return 5;
-            }
+        //     if (neighbor == NULL) {
+        //         return 5;
+        //     }
 
-            if (neighbor->getFilled() != 2) {
-                emptySide = 5;
-            }
-            return emptySide;
+        //     if (neighbor->getFilled() != 2) {
+        //         emptySide = 5;
+        //     }
+        //     return emptySide;
 
-        }
+        // }
         
         //return number of boxes in chain (stop counting if chain is longer than another already found)
-        int chainNum(int count, int bx, int by, int n) {
+        // int chainNum(int count, int bx, int by, int n) {
             
-            int chainable = chainNeighbor(bx, by, n);
-            printf("a chain at last\n");
+        //     int chainable = chainNeighbor(bx, by, n);
+        //     printf("a chain at last\n");
 
-            int empty = 0;
-            if (chainable >= 2) {
-                empty = chainable - 2;
-            }
-            else {
-                empty = chainable + 2;
-            }
+        //     int empty = 0;
+        //     if (chainable >= 2) {
+        //         empty = chainable - 2;
+        //     }
+        //     else {
+        //         empty = chainable + 2;
+        //     }
 
-            if ((chainable < 4) && (count <= maxChain)) {
-                Box* neighbor = getNeighbor(bx,by,chainable);
-                return chainNum(count + 1, neighbor->getBoxX(), neighbor->getBoxY(), empty);
-            }
-            else {
-                if (count < maxChain) {
-                    maxChain = count;
-                }
-                return count;
-            }
+        //     if ((chainable < 4) && (count <= maxChain)) {
+        //         Box* neighbor = getNeighbor(bx,by,chainable);
+        //         return chainNum(count + 1, neighbor->getBoxX(), neighbor->getBoxY(), empty);
+        //     }
+        //     else {
+        //         if (count < maxChain) {
+        //             maxChain = count;
+        //         }
+        //         return count;
+        //     }
             
-            //return 0;
-        }
+        //     //return 0;
+        // }
 
         int getScore() {
             return myScore - enemyScore;
         }
-        
 
-        int getEval() {
-            int chain = 0;
-            int eval = getScore();
+        // if anyside has 3 edges, whatever empty side 
 
-            //printf("checkpoint score: %d\n", eval);
-
-            // get box coords
-            int bx = mostRecentMove->getCoords()[1];
-            int by = mostRecentMove->getCoords()[0];
-
-            //bool noPass = false;
-            bool noPass = !(nextPass);
-
-            //if opponents turn to move (not pass), count possible chain
-            if (noPass) { //disabled for testing
-                printf("enemy does not pass\n");
-
-                bool isHorizontal = true;
-                if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
-                    isHorizontal = false;
-                }
-
-                if (isHorizontal) {
-                    //if upper box exists
-                    if (((by - 1) >= 0) && (allBoxes[by-1][bx] != NULL)){
-                        chain += chainNum(0, bx, by - 1, 2);
-                    }
-
-                    //if lower box exists
-                    if ((by <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
-                        chain += chainNum(0, bx, by, 0);
+        int chainFunction(Board* board) {
+            int maxChain = 0, curChain;
+            Box* box;
+            for(int i = 0; i < BOARD_HEIGHT; i++) {
+                for(int j = 0; j < BOARD_WIDTH; j++) {
+                    box = allBoxes[i][j];
+                    if(box->getFilled() == 3) {
+                        for(Edge* e : box->edges) {
+                            if(!e->getFilled()) {
+                                //make move, find max chainstuff unmakemove
+                                this->moveMalleable(&e, 2, true, this->mostRecentMove);
+                                curChain = 1 + chainFunction(this);
+                                maxChain > curChain ? maxChain = curChain : maxChain = maxChain;
+                                this->moveMalleable(&e, 2, false, this->mostRecentMove);
+                            }
+                        }
                     }
                 }
-                else {
-                    
-                    //if left box exists
-                    if ((bx - 1 >= 0) && (allBoxes[by][bx-1] != NULL)){
-                        chain += chainNum(0, bx - 1, by, 1);
-                    }
-
-                    //if right box exists
-                    if ((bx <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
-                        chain += chainNum(0, bx, by, 3);
-                        
-                    }
-                    
-                }
-                
             }
-
-            eval -= chain;
-
+            return maxChain;
+        }
+        
+        int getEval() {
+            int eval = 0;
+            if(nextPass) {
+                eval = getScore() + chainFunction(this);
+            }
+            else {
+                eval = getScore() - chainFunction(this);
+            }
+            //because this is the enemy turn, we subtract any possible chains that could be made
+            printf("Eval = %d\n", eval);
             return eval;
+        /*  // //printf("checkpoint score: %d\n", eval);
+
+            // // get box coords
+            // int bx = mostRecentMove->getCoords()[1];
+            // int by = mostRecentMove->getCoords()[0];
+
+            // //bool noPass = false;
+            // bool noPass = !(nextPass);
+
+            // //if opponents turn to move (not pass), count possible chain
+            // if (noPass) { //disabled for testing
+            //     printf("enemy does not pass\n");
+
+            //     bool isHorizontal = mostRecentMove->getCoords()[0] == mostRecentMove->getCoords()[2];
+
+            //     if (isHorizontal) {
+            //         //if upper box exists
+            //         if (((by - 1) >= 0) && (allBoxes[by-1][bx] != NULL)){
+            //             chain += chainNum(0, bx, by - 1, 2);
+            //         }
+
+            //         //if lower box exists
+            //         if ((by <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
+            //             chain += chainNum(0, bx, by, 0);
+            //         }
+            //     }
+            //     else {
+                    
+            //         //if left box exists
+            //         if ((bx - 1 >= 0) && (allBoxes[by][bx-1] != NULL)){
+            //             chain += chainNum(0, bx - 1, by, 1);
+            //         }
+
+            //         //if right box exists
+            //         if ((bx <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
+            //             chain += chainNum(0, bx, by, 3);
+                        
+            //         }
+                    
+            //     }
+                
+            // }
+
+            // eval -= chain;
+
+            // return eval;
+        */
         }
 
         Edge* getMostRecentMove() {
@@ -677,19 +705,6 @@ class Board {
         }
     
 };
-
-void deleteBoard(Board** oldBoard) {
-    for(int i = 0; i < BOARD_HEIGHT; i++) {
-        for(int j = 0; j < BOARD_WIDTH; j++) {
-            for(int k = 0; k < 4; k++) {
-                delete((*oldBoard)->allBoxes[i][j]->edges[k]);
-            }
-            delete((*oldBoard)->allBoxes[i][j]);
-        }
-    }
-    // delete((*oldBoard)->allBoxes);
-    delete((*oldBoard));
-}
 
 Edge* bestMove = new Edge(0,0,0,0);
 
