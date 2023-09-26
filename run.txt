@@ -1,2 +1,2 @@
 Clairvoyance
-g++ -std=c++11 -Wall -g ./Program.cpp -o Clairvoyance; ./Clairvoyance
+g++ -g ./Program.cpp -o Clairvoyance; ./Clairvoyance

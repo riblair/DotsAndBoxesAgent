@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <windows.h>
 #include<unistd.h> 
 #include <time.h>
 #include <math.h>
@@ -236,14 +235,6 @@ class Board {
                     //allBoxes[i][j]->setFilled((*prevBoard)->allBoxes[i][j])
                 }
             }
-            //needs to happen afterwards to avoid null pointer
-            // for(int i = 0; i < BOARD_HEIGHT; i++) {
-            //     for(int j = 0; j < BOARD_WIDTH; j++) {
-            //         copyBox = boxCopy(&(*prevBoard)->allBoxes[i][j]);
-            //         // copy boxes, then
-            //         allBoxes[i][j] = copyBox;
-            //     }
-            // }
 
             // if a fakemove is copied, this makes an exact copy of the board;
             if((*currMove)->equals(fakeMove)) {
@@ -268,7 +259,7 @@ class Board {
             bool verticalMove = moveCoords[1] == moveCoords[3]; 
             bool horizontalMove = moveCoords[0] == moveCoords[2]; 
 
-            if((!verticalMove && !horizontalMove) || (verticalMove && horizontalMove)) { //hopefully this never happens :)
+            if((!verticalMove && !horizontalMove) || (verticalMove && horizontalMove)) {
                 printf("Something went wrong with move coordinates\n");
                 printf("Current coordinantes: %d,%d, %d,%d ", moveCoords[0],moveCoords[1],moveCoords[2],moveCoords[3]);
             }
@@ -641,11 +632,7 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
     Edge* moves = board->getMoves();
     if (moves == NULL) {
         return board->getScore();
-    }
-    // at this point board childboard and current board all refer to the same object,
-    // any changes made to ANY of these will alter the other ones no matter what. 
-    // IF you want an exact copy, use new Board(&previousBoard, &fakeMove, 0, previousBoard->myScore, previousBoard->enemyScore);
-    //Board* childBoard = currentBoard;  
+    } 
     if (isMax) {
         int maxEval = -100000;
         
@@ -654,7 +641,6 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
             
             moveDepths[depth-1] = moves;
             board->moveMalleable(&moves, 1, true, NULL);
-            //Board* childBoard = new Board(&board, &moves, 1, board->myScore, board->enemyScore);
             
             int eval = minimax(board, depth-1, false, alpha, beta);
             if (eval > maxEval) {
@@ -680,7 +666,6 @@ int minimax(Board* board, int depth, bool isMax, int alpha, int beta) {
         while(moves != NULL) {
             moveDepths[depth-1] = moves;
             board->moveMalleable(&moves, 2, true, NULL);
-            //Board* childBoard = new Board(&board, &moves, 2, board->myScore, board->enemyScore);
 
             int eval = minimax(board, depth-1, true, alpha, beta);
             minEval = min(minEval, eval);
@@ -770,7 +755,7 @@ Edge* extractMove(FILE** moveFP) {
 
 // returns move with name
 char* edgeToString(Edge* edge) { 
-    char* edgeString = (char*)malloc(25*sizeof(char)); // we have no way to close this, may cause memory leak :)
+    char* edgeString = (char*)malloc(25*sizeof(char)); 
     int* coords = edge->coords;
     int outputNum = snprintf(edgeString, 24, "Clairvoyance %d,%d %d,%d", *coords, *(coords+1), *(coords+2), *(coords+3));
     printf("Sprintf output %d, %s\n", outputNum,edgeString);
@@ -830,7 +815,7 @@ void handleOppTurn(Board** currentBoard) {
     struct stat* fileStat = (struct stat*)malloc(sizeof(struct stat));
     stat(moveFileName,fileStat);
     bool Empty = fileStat->st_size == 0;
-    free(fileStat); // mybe
+    free(fileStat); 
     if(Empty) { //first move with an empty move file
         fclose(moveFP);
         return; 
@@ -882,20 +867,19 @@ int main(int argc, char** argv) {
             else{ //take our turn if not passed
 
                 /* GENERATE BEST MOVE */
-                bestMove = generateRandomMove(localBoard);
-                //currentBoard = new Board(&localBoard, &fakeMove, 0, localBoard->myScore, localBoard->enemyScore); //make a copy and then do all stuff to that copy board
+                bestMove = generateRandomMove(localBoard); //value overridden by minimax (generated as a backup)
+                
                 minimax(localBoard, DEPTH, true, -100000, 100000); 
                 printf("my move %d, %d, %d, %d\n", bestMove->coords[0], bestMove->coords[1], bestMove->coords[2], bestMove->coords[3]);
-                //localBoard->moveMalleable(&moveDepths[DEPTH], 1);
+                
                 localBoard->moveMalleable(&bestMove, 1, true, NULL);
                 for (int i = 0; i <= DEPTH; i++) {
                     moveDepths[i] = localBoard->getMostRecentMove(); 
                 }
-                //localBoard->setPass(false); //when player updates board, never handle passing
-                writeMove(bestMove); //replace with bestMove
+                writeMove(bestMove);
             }
             t = clock() - t;
-            printf ("It took me %lu clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
+            printf ("It took me %f seconds.\n",((float)t)/CLOCKS_PER_SEC);
             sleep(1);
         }
         else {
