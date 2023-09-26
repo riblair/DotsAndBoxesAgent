@@ -549,7 +549,7 @@ class Board {
                 neighborX -= 1;
             }
 
-            if ((neighborX >= 0) && (neighborY >= 0)) {
+            if ((neighborX >= 0) && (neighborY >= 0) && (neighborX < 9) && (neighborY < 9)) {
                 return allBoxes[neighborY][neighborX];
             }
             else {
@@ -561,16 +561,26 @@ class Board {
         //return side with chainable neighbor (or 5 if no sides are chainable)
         int chainNeighbor(int bx, int by, int possibleSide) {
             Box* curBox = allBoxes[by][bx];
+
             bool newArr[4] = {(curBox->edges[0])->getFilled(), (curBox->edges[1])->getFilled(), (curBox->edges[2])->getFilled(), (curBox->edges[3])->getFilled()};
             newArr[possibleSide] = true;
+
+            int countFilled = 0;
 
             int emptySide = 0;
             for (int i = 0; i < 4; i++) {
                 if (newArr[i] == false) {
                     emptySide = i;
                 }
+                else {
+                    countFilled += 1;
+                }
+            }
+            if (countFilled != 3) {
+                return 5;
             }
             
+            /*
             Box* neighbor = this->getNeighbor(bx,by,emptySide);
 
             if (neighbor == NULL) {
@@ -580,6 +590,7 @@ class Board {
             if (neighbor->getFilled() != 2) {
                 emptySide = 5;
             }
+            */
             return emptySide;
 
         }
@@ -588,7 +599,7 @@ class Board {
         int chainNum(int count, int bx, int by, int n) {
             
             int chainable = chainNeighbor(bx, by, n);
-            printf("a chain at last\n");
+            //printf("a chain at last\n");
 
             int empty = 0;
             if (chainable >= 2) {
@@ -597,17 +608,18 @@ class Board {
             else {
                 empty = chainable + 2;
             }
-
-            if ((chainable < 4) && (count <= maxChain)) {
+            if (chainable < 4) {
+                count += 1;
                 Box* neighbor = getNeighbor(bx,by,chainable);
-                return chainNum(count + 1, neighbor->getBoxX(), neighbor->getBoxY(), empty);
-            }
-            else {
-                if (count < maxChain) {
-                    maxChain = count;
+                if ((neighbor != NULL) && (count <= maxChain)) {
+                    return chainNum(count, neighbor->getBoxX(), neighbor->getBoxY(), empty);
                 }
-                return count;
             }
+
+            if (count < maxChain) {
+                maxChain = count;
+            }
+            return count;
             
             //return 0;
         }
@@ -632,7 +644,7 @@ class Board {
 
             //if opponents turn to move (not pass), count possible chain
             if (noPass) { //disabled for testing
-                printf("enemy does not pass\n");
+                //printf("enemy does not pass\n");
 
                 bool isHorizontal = true;
                 if (mostRecentMove->getCoords()[0] != mostRecentMove->getCoords()[2]) {
@@ -641,24 +653,24 @@ class Board {
 
                 if (isHorizontal) {
                     //if upper box exists
-                    if (((by - 1) >= 0) && (allBoxes[by-1][bx] != NULL)){
+                    if ((by > 0) && (allBoxes[by-1][bx] != NULL)){
                         chain += chainNum(0, bx, by - 1, 2);
                     }
 
                     //if lower box exists
-                    if ((by <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
+                    if ((by < BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
                         chain += chainNum(0, bx, by, 0);
                     }
                 }
                 else {
                     
                     //if left box exists
-                    if ((bx - 1 >= 0) && (allBoxes[by][bx-1] != NULL)){
+                    if ((bx > 0) && (allBoxes[by][bx-1] != NULL)){
                         chain += chainNum(0, bx - 1, by, 1);
                     }
 
                     //if right box exists
-                    if ((bx <= BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
+                    if ((bx < BOARD_HEIGHT) && (allBoxes[by][bx] != NULL)){
                         chain += chainNum(0, bx, by, 3);
                         
                     }
